@@ -1,6 +1,7 @@
---[[ Mage Gear by RedFrog v2.3.2 (DoN EMU Adjusted) Started: March 29, 2025
+--[[ Mage Gear by RedFrog v2.3.3 (DoN EMU Adjusted) Started: March 29, 2025
     Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
     Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
+    Fixed: Distance check before casting, pet validation, casting(cursor issues, loop control
 ]]
 
 local mq = require('mq')
@@ -67,7 +68,7 @@ local petSpells = {
     { spell = "Conjuration: Air",           level = 52, desc = "Summons an air elemental" },
     { spell = "Conjuration: Earth",         level = 51, desc = "Summons an earth elemental" },
     { spell = "Lesser Conjuration: Water",  level = 44, desc = "Summons a lesser water elemental" },
-    { spell = "Lesser Conjuration: Fire",   level = 43, desc = "Summons a lesser fire elemental" },
+    { spell = "Lesser Conjuration: Fire",   level = 43, Mailchite = "Summons a lesser fire elemental" },
     { spell = "Lesser Conjuration: Air",    level = 42, desc = "Summons a lesser air elemental" },
     { spell = "Lesser Conjuration: Earth",  level = 41, desc = "Summons a lesser earth elemental" },
     { spell = "Greater Summoning: Water",   level = 34, desc = "Summons a water elemental ally" },
@@ -256,7 +257,7 @@ local function mageGear(open)
 
     local ColorCount, StyleCount = Themes.StartTheme(currentTheme, ThemeData)
     local show = false
-    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.2", open)
+    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.3", open)
 
     if not open then
         openGUI = false
@@ -463,7 +464,7 @@ local function memorizeSpell(spell)
         mq.cmdf("%s", command)
         mq.delay(20)
         MGear('\amMemorizing \ax' .. spell .. ' in gem ' .. lastGem)
-        mq.delay(5000, function() return mq.TLO.Me.Gem(lastGem).Name() == spell end)
+        mq.delay(6000, function() return mq.TLO.Me.Gem(lastGem).Name() == spell end)
         if ((mq.TLO.Me.Gem(spell)() or 0) == 0) then
             MGear('\arError\ax: Failed to memorize ' .. spell .. ' in gem Slot: ' .. lastGem)
             flag = false
@@ -502,13 +503,14 @@ local function summonPet(pet)
     end
 
     mq.cmdf('/cast "%s"', pet.spell)
-    mq.delay(2000)
+    mq.delay(3000) -- Increased delay for casting start
 
     timeout = os.time() + 15
     local castAttempts = 0
     while not mq.TLO.Me.Casting() and os.time() < timeout do
         if mq.TLO.Me.SpellReady(pet.spell)() and castAttempts < 3 then
             castAttempts = castAttempts + 1
+            MGear('\ayRetrying cast attempt ' .. castAttempts .. ' for ' .. pet.spell)
             mq.cmdf('/cast "%s"', pet.spell)
         end
         mq.delay(500)
@@ -563,12 +565,34 @@ local function summonItem(spellData)
     end
 
     mq.cmdf('/cast "%s"', spellData.spell)
-    mq.delay(2000)
+    mq.delay(3000) -- Increased initial cast delay
 
     timeout = os.time() + 15
-    while not mq.TLO.Me.Casting() and os.time() < timeout do mq.delay(500) end
+    local castAttempts = 0
+    while not mq.TLO.Me.Casting() and os.time() < timeout do
+        if mq.TLO.Me.SpellReady(spellData.spell)() and castAttempts < 3 then
+            castAttempts = castAttempts + 1
+            MGear('\ayRetrying cast attempt ' .. castAttempts .. ' for ' .. spellData.spell)
+            mq.cmdf('/cast "%s"', spellData.spell)
+        end
+        mq.delay(500)
+    end
+
+    if not mq.TLO.Me.Casting() then
+        MGear('\arError\ax: Casting ' .. spellData.spell .. ' failed after ' .. castAttempts .. ' attempts')
+        return false
+    end
+
+    timeout = os.time() + 15
     while mq.TLO.Me.Casting() and os.time() < timeout do mq.delay(500) end
 
+    timeout = os.time() + 10
+    local cursorAttempts = 0
+    while not mq.TLO.Cursor.ID() and os.time() < timeout do
+        cursorAttempts = cursorAttempts + 1
+        MGear('\ayWaiting for cursor, attempt ' .. cursorAttempts)
+        mq.delay(1000)
+    end
     if not mq.TLO.Cursor.ID() then
         MGear('\arError\ax: No item on cursor after casting ' .. spellData.spell)
         return false
@@ -599,65 +623,90 @@ local function handCursorToPet()
 end
 
 local function moveToPet(targetPet)
+    if not targetPet then
+        MGear('\arError\ax: No pet name provided')
+        return false
+    end
     mq.cmdf('/tar %s', targetPet)
     mq.delay(500)
     if not mq.TLO.Target.ID() then
         MGear('\arError\ax: Could not target ' .. targetPet)
         return false
     end
-    if mq.TLO.Target.Distance() <= 20 then
+    local distance = mq.TLO.Target.Distance() or 999
+    MGear('\ayDistance to ' .. targetPet .. ': ' .. distance)
+    if distance <= 20 then
         return true
     else
         MGear('\ayNavigating to \ax' .. targetPet)
         mq.cmd('/nav target')
-        return false
+        local timeout = os.time() + 15
+        while mq.TLO.Navigation.Active() and os.time() < timeout do
+            mq.delay(500)
+            distance = mq.TLO.Target.Distance() or 999
+            MGear('\ayCurrent distance: ' .. distance)
+            if distance <= 20 then break end
+        end
+        if distance <= 20 then
+            MGear('\ayReached ' .. targetPet)
+            return true
+        else
+            MGear('\arError\ax: Too far from ' .. targetPet .. ' (Distance: ' .. distance .. ')')
+            return false
+        end
     end
 end
 
 local needMove = false
 
 local function giveItemToPet(targetPet)
-    local success = true
+    if not targetPet then
+        MGear('\arError\ax: Invalid pet name')
+        return false
+    end
 
-    if moveToPet(targetPet) then
-        -- Weapons first
-        if doWeapons and success then
-            success = summonItem(petWeps[petPriWep + 1])
-            if success then handCursorToPet() end
-            if success then success = summonItem(petWeps[petSecWep + 1]) end
-            if success then handCursorToPet() end
-        end
-
-        -- Belt next
-        if doBelt and success then
-            success = summonItem(beltSpells[selectedBelt + 1])
-            if success then handCursorToPet() end
-        end
-
-        -- Mask
-        if doMask and success then
-            success = summonItem(maskSpells[selectedMask + 1])
-            if success then handCursorToPet() end
-        end
-
-        -- Armor (bag)
-        if doArmor and success then
-            success = summonItem(armorSpells[selectedArmor + 1])
-            if success then handCursorToPet() end
-        end
-
-        -- Jewelry (bag)
-        if doJewelry and success then
-            success = summonItem(jewelrySpells[selectedJewelry + 1])
-            if success then handCursorToPet() end
-        end
-
-        needMove = false
-        return success
-    else
+    -- Move to pet first and check distance
+    if not moveToPet(targetPet) then
         needMove = true
         return false
     end
+
+    local success = true
+
+    -- Weapons first
+    if doWeapons and success then
+        success = summonItem(petWeps[petPriWep + 1])
+        if success then handCursorToPet() end
+        if success then success = summonItem(petWeps[petSecWep + 1]) end
+        if success then handCursorToPet() end
+    end
+
+    -- Belt next
+    if doBelt and success then
+        success = summonItem(beltSpells[selectedBelt + 1])
+        if success then handCursorToPet() end
+    end
+
+    -- Mask
+    if doMask and success then
+        success = summonItem(maskSpells[selectedMask + 1])
+        if success then handCursorToPet() end
+    end
+
+    -- Armor (bag)
+    if doArmor and success then
+        success = summonItem(armorSpells[selectedArmor + 1])
+        if success then handCursorToPet() end
+    end
+
+    -- Jewelry (bag)
+    if doJewelry and success then
+        success = summonItem(jewelrySpells[selectedJewelry + 1])
+        if success then handCursorToPet() end
+    end
+
+    needMove = false
+    return success
 end
 
 function table.contains(table, element)
@@ -679,9 +728,6 @@ while openGUI do
     end
 
     while doRun do
-        if needMove then
-            giveItemToPet(tradePetName)
-        end
         local itemsToSummon = {}
         if doWeapons then
             itemsToSummon[#itemsToSummon + 1] = 'Primary=' .. petWeps[petPriWep + 1].spell
@@ -701,12 +747,14 @@ while openGUI do
         end
         MGear('\amPreparing to summon: \ax' .. table.concat(itemsToSummon, ', '))
 
+        local success = false
         if GearTarget == 'Self' then
             if not mq.TLO.Me.Pet.ID() then
                 MGear('\arError\ax: You do not have a pet')
             else
                 tradePetName = mq.TLO.Me.Pet.CleanName()
-                if giveItemToPet(tradePetName) then
+                success = giveItemToPet(tradePetName)
+                if success then
                     MGear('\agSummoning complete')
                 end
             end
@@ -715,12 +763,13 @@ while openGUI do
                 MGear('\arError\ax: Invalid target')
             else
                 tradePetName = mq.TLO.Target.Pet.CleanName()
-                if tradePetName then
-                    if giveItemToPet(tradePetName) then
+                if not tradePetName then
+                    MGear('\arError\ax: Target has no pet')
+                else
+                    success = giveItemToPet(tradePetName)
+                    if success then
                         MGear('\agSummoning complete')
                     end
-                else
-                    MGear('\arError\ax: Target has no pet')
                 end
             end
         elseif GearTarget == 'Group' then
@@ -728,7 +777,7 @@ while openGUI do
             if groupSize == 0 then
                 MGear('\arError\ax: Not in a group')
             else
-                local success = true
+                success = true
                 for i = 0, groupSize do
                     local member = mq.TLO.Group.Member(i)
                     if member() and member.Pet.ID() > 0 then
@@ -743,7 +792,12 @@ while openGUI do
                 end
             end
         end
-        doRun = false
+
+        if needMove then
+            MGear('\ayWaiting to reach pet, retrying...')
+        else
+            doRun = false -- Exit loop if no navigation needed or on failure
+        end
     end
 end
 saveSettings()
