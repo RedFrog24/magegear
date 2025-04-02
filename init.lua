@@ -1,7 +1,7 @@
---[[ Mage Gear by RedFrog v2.3.3 (DoN EMU Adjusted) Started: March 29, 2025
+--[[ Mage Gear by RedFrog v2.3.4 (DoN EMU Adjusted) Started: March 29, 2025
     Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
     Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
-    Fixed: Distance check before casting, pet validation, casting(cursor issues, loop control
+    Fixed: Distance check before casting, pet validation, casting/cursor issues, loop control, added nav delay, restored hover colors
 ]]
 
 local mq = require('mq')
@@ -68,7 +68,7 @@ local petSpells = {
     { spell = "Conjuration: Air",           level = 52, desc = "Summons an air elemental" },
     { spell = "Conjuration: Earth",         level = 51, desc = "Summons an earth elemental" },
     { spell = "Lesser Conjuration: Water",  level = 44, desc = "Summons a lesser water elemental" },
-    { spell = "Lesser Conjuration: Fire",   level = 43, Mailchite = "Summons a lesser fire elemental" },
+    { spell = "Lesser Conjuration: Fire",   level = 43, desc = "Summons a lesser fire elemental" },
     { spell = "Lesser Conjuration: Air",    level = 42, desc = "Summons a lesser air elemental" },
     { spell = "Lesser Conjuration: Earth",  level = 41, desc = "Summons a lesser earth elemental" },
     { spell = "Greater Summoning: Water",   level = 34, desc = "Summons a water elemental ally" },
@@ -257,7 +257,7 @@ local function mageGear(open)
 
     local ColorCount, StyleCount = Themes.StartTheme(currentTheme, ThemeData)
     local show = false
-    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.3", open)
+    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.4", open)
 
     if not open then
         openGUI = false
@@ -503,7 +503,7 @@ local function summonPet(pet)
     end
 
     mq.cmdf('/cast "%s"', pet.spell)
-    mq.delay(3000) -- Increased delay for casting start
+    mq.delay(3000)
 
     timeout = os.time() + 15
     local castAttempts = 0
@@ -565,7 +565,7 @@ local function summonItem(spellData)
     end
 
     mq.cmdf('/cast "%s"', spellData.spell)
-    mq.delay(3000) -- Increased initial cast delay
+    mq.delay(3000)
 
     timeout = os.time() + 15
     local castAttempts = 0
@@ -648,7 +648,8 @@ local function moveToPet(targetPet)
             if distance <= 20 then break end
         end
         if distance <= 20 then
-            MGear('\ayReached ' .. targetPet)
+            MGear('\ayReached ' .. targetPet .. ', pausing...')
+            mq.delay(1000) -- Delay after navigation completes
             return true
         else
             MGear('\arError\ax: Too far from ' .. targetPet .. ' (Distance: ' .. distance .. ')')
@@ -796,7 +797,7 @@ while openGUI do
         if needMove then
             MGear('\ayWaiting to reach pet, retrying...')
         else
-            doRun = false -- Exit loop if no navigation needed or on failure
+            doRun = false
         end
     end
 end
