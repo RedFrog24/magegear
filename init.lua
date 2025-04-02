@@ -1,5 +1,6 @@
---[[ Mage Gear by RedFrog v2.3.1 (DoN EMU Adjusted) Started: March 29, 2025
-    Styled: Custom colors, GUI tooltips, condensed slot checks, toggles and themes, animated summon, elemental themes
+--[[ Mage Gear by RedFrog v2.3.2 (DoN EMU Adjusted) Started: March 29, 2025
+    Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
+    Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
 ]]
 
 local mq = require('mq')
@@ -37,83 +38,83 @@ local currentTheme = "Grape"
 
 -- Full Weapons Table
 local petWeps = {
-    { spell = "Summon Fireblade",               item = "Summoned: Fireblade",               level = 66, desc = "A blazing magical blade", },
-    { spell = "Summon Staff of the North Wind", item = "Summoned: Staff of the North Wind", level = 67, desc = "A staff imbued with icy winds", },
-    { spell = "Blade of the Kedge",             item = "Summoned: Blade of the Kedge",      level = 63, desc = "A sharp aquatic blade", },
-    { spell = "Fist of Ixiblat",                item = "Summoned: Hand of Ixiblat",         level = 62, desc = "A fiery fist weapon", },
-    { spell = "Blade of Walnan",                item = "Summoned: Blade of Walnan",         level = 61, desc = "A sturdy enchanted sword", },
-    { spell = "Dagger of Symbols",              item = "Summoned: Dagger of Symbols",       level = 35, desc = "A rune-etched dagger", },
-    { spell = "Staff of Symbols",               item = "Summoned: Staff of Symbols",        level = 33, desc = "A staff covered in runes", },
-    { spell = "Sword of Runes",                 item = "Summoned: Sword of Runes",          level = 26, desc = "A sword with mystical runes", },
-    { spell = "Staff of Runes",                 item = "Summoned: Staff of Runes",          level = 24, desc = "A rune-carved staff", },
-    { spell = "Spear of Warding",               item = "Summoned: Spear of Warding",        level = 20, desc = "A protective spear", },
-    { spell = "Staff of Warding",               item = "Summoned: Staff of Warding",        level = 14, desc = "A staff of defense", },
-    { spell = "Summon Fang",                    item = "Summoned: Fang",                    level = 9,  desc = "A sharp summoned tooth", },
-    { spell = "Staff of Tracing",               item = "Summoned: Staff of Tracing",        level = 8,  desc = "A basic magical staff", },
-    { spell = "Summon Dagger",                  item = "Summoned: Dagger",                  level = 1,  desc = "A simple conjured dagger", },
+    { spell = "Summon Fireblade",               item = "Summoned: Fireblade",               level = 66, desc = "A blazing magical blade" },
+    { spell = "Summon Staff of the North Wind", item = "Summoned: Staff of the North Wind", level = 67, desc = "A staff imbued with icy winds" },
+    { spell = "Blade of the Kedge",             item = "Summoned: Blade of the Kedge",      level = 63, desc = "A sharp aquatic blade" },
+    { spell = "Fist of Ixiblat",                item = "Summoned: Hand of Ixiblat",         level = 62, desc = "A fiery fist weapon" },
+    { spell = "Blade of Walnan",                item = "Summoned: Blade of Walnan",         level = 61, desc = "A sturdy enchanted sword" },
+    { spell = "Dagger of Symbols",              item = "Summoned: Dagger of Symbols",       level = 35, desc = "A rune-etched dagger" },
+    { spell = "Staff of Symbols",               item = "Summoned: Staff of Symbols",        level = 33, desc = "A staff covered in runes" },
+    { spell = "Sword of Runes",                 item = "Summoned: Sword of Runes",          level = 26, desc = "A sword with mystical runes" },
+    { spell = "Staff of Runes",                 item = "Summoned: Staff of Runes",          level = 24, desc = "A rune-carved staff" },
+    { spell = "Spear of Warding",               item = "Summoned: Spear of Warding",        level = 20, desc = "A protective spear" },
+    { spell = "Staff of Warding",               item = "Summoned: Staff of Warding",        level = 14, desc = "A staff of defense" },
+    { spell = "Summon Fang",                    item = "Summoned: Fang",                    level = 9,  desc = "A sharp summoned tooth" },
+    { spell = "Staff of Tracing",               item = "Summoned: Staff of Tracing",        level = 8,  desc = "A basic magical staff" },
+    { spell = "Summon Dagger",                  item = "Summoned: Dagger",                  level = 1,  desc = "A simple conjured dagger" },
 }
 
 -- Full Pet Spells Table
 local petSpells = {
-    { spell = "Call of the Arch Mage",      level = 70, desc = "Summons a powerful elemental servant", },
-    { spell = "Greater Conjuration: Water", level = 66, desc = "Summons a strong water elemental", },
-    { spell = "Greater Conjuration: Fire",  level = 65, desc = "Summons a strong fire elemental", },
-    { spell = "Greater Conjuration: Air",   level = 64, desc = "Summons a strong air elemental", },
-    { spell = "Greater Conjuration: Earth", level = 63, desc = "Summons a strong earth elemental", },
-    { spell = "Servant of Marr",            level = 62, desc = "Summons a devoted servant of Marr", },
-    { spell = "Conjuration: Water",         level = 54, desc = "Summons a water elemental", },
-    { spell = "Conjuration: Fire",          level = 53, desc = "Summons a fire elemental", },
-    { spell = "Conjuration: Air",           level = 52, desc = "Summons an air elemental", },
-    { spell = "Conjuration: Earth",         level = 51, desc = "Summons an earth elemental", },
-    { spell = "Lesser Conjuration: Water",  level = 44, desc = "Summons a lesser water elemental", },
-    { spell = "Lesser Conjuration: Fire",   level = 43, desc = "Summons a lesser fire elemental", },
-    { spell = "Lesser Conjuration: Air",    level = 42, desc = "Summons a lesser air elemental", },
-    { spell = "Lesser Conjuration: Earth",  level = 41, desc = "Summons a lesser earth elemental", },
-    { spell = "Greater Summoning: Water",   level = 34, desc = "Summons a water elemental ally", },
-    { spell = "Greater Summoning: Fire",    level = 33, desc = "Summons a fire elemental ally", },
-    { spell = "Greater Summoning: Air",     level = 32, desc = "Summons an air elemental ally", },
-    { spell = "Greater Summoning: Earth",   level = 31, desc = "Summons an earth elemental ally", },
-    { spell = "Summoning: Water",           level = 24, desc = "Summons a basic water elemental", },
-    { spell = "Summoning: Fire",            level = 23, desc = "Summons a basic fire elemental", },
-    { spell = "Summoning: Air",             level = 22, desc = "Summons a basic air elemental", },
-    { spell = "Summoning: Earth",           level = 21, desc = "Summons a basic earth elemental", },
-    { spell = "Lesser Summoning: Water",    level = 16, desc = "Summons a weak water elemental", },
-    { spell = "Lesser Summoning: Fire",     level = 15, desc = "Summons a weak fire elemental", },
-    { spell = "Lesser Summoning: Air",      level = 14, desc = "Summons a weak air elemental", },
-    { spell = "Lesser Summoning: Earth",    level = 13, desc = "Summons a weak earth elemental", },
-    { spell = "Minor Summoning: Water",     level = 8,  desc = "Summons a minor water elemental", },
-    { spell = "Minor Summoning: Fire",      level = 7,  desc = "Summons a minor fire elemental", },
-    { spell = "Minor Summoning: Air",       level = 6,  desc = "Summons a minor air elemental", },
-    { spell = "Minor Summoning: Earth",     level = 5,  desc = "Summons a minor earth elemental", },
-    { spell = "Elemental: Water",           level = 4,  desc = "Summons a tiny water elemental", },
-    { spell = "Elemental: Fire",            level = 3,  desc = "Summons a tiny fire elemental", },
-    { spell = "Elemental: Air",             level = 2,  desc = "Summons a tiny air elemental", },
-    { spell = "Elemental: Earth",           level = 1,  desc = "Summons a tiny earth elemental", },
+    { spell = "Call of the Arch Mage",      level = 70, desc = "Summons a powerful elemental servant" },
+    { spell = "Greater Conjuration: Water", level = 66, desc = "Summons a strong water elemental" },
+    { spell = "Greater Conjuration: Fire",  level = 65, desc = "Summons a strong fire elemental" },
+    { spell = "Greater Conjuration: Air",   level = 64, desc = "Summons a strong air elemental" },
+    { spell = "Greater Conjuration: Earth", level = 63, desc = "Summons a strong earth elemental" },
+    { spell = "Servant of Marr",            level = 62, desc = "Summons a devoted servant of Marr" },
+    { spell = "Conjuration: Water",         level = 54, desc = "Summons a water elemental" },
+    { spell = "Conjuration: Fire",          level = 53, desc = "Summons a fire elemental" },
+    { spell = "Conjuration: Air",           level = 52, desc = "Summons an air elemental" },
+    { spell = "Conjuration: Earth",         level = 51, desc = "Summons an earth elemental" },
+    { spell = "Lesser Conjuration: Water",  level = 44, desc = "Summons a lesser water elemental" },
+    { spell = "Lesser Conjuration: Fire",   level = 43, desc = "Summons a lesser fire elemental" },
+    { spell = "Lesser Conjuration: Air",    level = 42, desc = "Summons a lesser air elemental" },
+    { spell = "Lesser Conjuration: Earth",  level = 41, desc = "Summons a lesser earth elemental" },
+    { spell = "Greater Summoning: Water",   level = 34, desc = "Summons a water elemental ally" },
+    { spell = "Greater Summoning: Fire",    level = 33, desc = "Summons a fire elemental ally" },
+    { spell = "Greater Summoning: Air",     level = 32, desc = "Summons an air elemental ally" },
+    { spell = "Greater Summoning: Earth",   level = 31, desc = "Summons an earth elemental ally" },
+    { spell = "Summoning: Water",           level = 24, desc = "Summons a basic water elemental" },
+    { spell = "Summoning: Fire",            level = 23, desc = "Summons a basic fire elemental" },
+    { spell = "Summoning: Air",             level = 22, desc = "Summons a basic air elemental" },
+    { spell = "Summoning: Earth",           level = 21, desc = "Summons a basic earth elemental" },
+    { spell = "Lesser Summoning: Water",    level = 16, desc = "Summons a weak water elemental" },
+    { spell = "Lesser Summoning: Fire",     level = 15, desc = "Summons a weak fire elemental" },
+    { spell = "Lesser Summoning: Air",      level = 14, desc = "Summons a weak air elemental" },
+    { spell = "Lesser Summoning: Earth",    level = 13, desc = "Summons a weak earth elemental" },
+    { spell = "Minor Summoning: Water",     level = 8,  desc = "Summons a minor water elemental" },
+    { spell = "Minor Summoning: Fire",      level = 7,  desc = "Summons a minor fire elemental" },
+    { spell = "Minor Summoning: Air",       level = 6,  desc = "Summons a minor air elemental" },
+    { spell = "Minor Summoning: Earth",     level = 5,  desc = "Summons a minor earth elemental" },
+    { spell = "Elemental: Water",           level = 4,  desc = "Summons a tiny water elemental" },
+    { spell = "Elemental: Fire",            level = 3,  desc = "Summons a tiny fire elemental" },
+    { spell = "Elemental: Air",             level = 2,  desc = "Summons a tiny air elemental" },
+    { spell = "Elemental: Earth",           level = 1,  desc = "Summons a tiny earth elemental" },
 }
 
 -- Full Belt Spells Table
 local beltSpells = {
-    { spell = "Crystal Belt",       item = "Summoned: Crystal Belt",       level = 67, desc = "A shimmering crystal belt", },
-    { spell = "Girdle of Magi`Kot", item = "Summoned: Girdle of Magi`Kot", level = 64, desc = "A sturdy magical girdle", },
-    { spell = "Belt of Magi`Kot",   item = "Summoned: Belt of Magi`Kot",   level = 61, desc = "A simple mage's belt", },
+    { spell = "Crystal Belt",       item = "Summoned: Crystal Belt",       level = 67, desc = "A shimmering crystal belt" },
+    { spell = "Girdle of Magi`Kot", item = "Summoned: Girdle of Magi`Kot", level = 64, desc = "A sturdy magical girdle" },
+    { spell = "Belt of Magi`Kot",   item = "Summoned: Belt of Magi`Kot",   level = 61, desc = "A simple mage's belt" },
 }
 
 -- Full Mask Spells Table
 local maskSpells = {
-    { spell = "Muzzle of Mardu", item = "Summoned: Muzzle of Mardu", level = 56, desc = "A mystical muzzle mask", },
+    { spell = "Muzzle of Mardu", item = "Summoned: Muzzle of Mardu", level = 56, desc = "A mystical muzzle mask" },
 }
 
 -- Full Armor Spells Table
 local armorSpells = {
-    { spell = "Summon Phantom Leather", bag = "Phantom Satchel", items = { "Phantom Leather Skullcap", "Phantom Leather Tunic", "Phantom Leather Sleeves", "Phantom Leather Bracer", "Phantom Leather Bracer", "Phantom Leather Gloves", "Phantom Leather Leggings", "Phantom Leather Boots", }, level = 56, desc = "Summons a bag of leather armor", },
-    { spell = "Summon Phantom Chain",   bag = "Phantom Satchel", items = { "Phantom Chain Coif", "Phantom Chain Coat", "Phantom Chain Sleeves", "Phantom Chain Bracer", "Phantom Chain Bracer", "Phantom Chain Gloves", "Phantom Chain Greaves", "Phantom Chain Boots", },                       level = 61, desc = "Summons a bag of chain armor", },
-    { spell = "Summon Phantom Plate",   bag = "Phantom Satchel", items = { "Phantom Plate Helm", "Phantom Breastplate", "Phantom Plate Vambraces", "Phantom Plate Bracers", "Phantom Plate Bracers", "Phantom Plate Gauntlets", "Phantom Plate Greaves", "Phantom Plate Boots", },               level = 65, desc = "Summons a bag of plate armor", },
+    { spell = "Summon Phantom Leather", bag = "Phantom Satchel", items = { "Phantom Leather Skullcap", "Phantom Leather Tunic", "Phantom Leather Sleeves", "Phantom Leather Bracer", "Phantom Leather Bracer", "Phantom Leather Gloves", "Phantom Leather Leggings", "Phantom Leather Boots" }, level = 56, desc = "Summons a bag of leather armor" },
+    { spell = "Summon Phantom Chain",   bag = "Phantom Satchel", items = { "Phantom Chain Coif", "Phantom Chain Coat", "Phantom Chain Sleeves", "Phantom Chain Bracer", "Phantom Chain Bracer", "Phantom Chain Gloves", "Phantom Chain Greaves", "Phantom Chain Boots" },                       level = 61, desc = "Summons a bag of chain armor" },
+    { spell = "Summon Phantom Plate",   bag = "Phantom Satchel", items = { "Phantom Plate Helm", "Phantom Breastplate", "Phantom Plate Vambraces", "Phantom Plate Bracers", "Phantom Plate Bracers", "Phantom Plate Gauntlets", "Phantom Plate Greaves", "Phantom Plate Boots" },               level = 65, desc = "Summons a bag of plate armor" },
 }
 
 -- Full Jewelry Spells Table
 local jewelrySpells = {
-    { spell = "Summon Jewelry Bag",      bag = "Phantom Satchel", items = { "Jedah's Platinum Choker", "Tavee's Runed Mantle", "Gallenite's Sapphire Bracelet", "Naki's Spiked Ring", "Jolum's Glowing Bauble", "Rallican's Steel Bracelet", },      level = 63, desc = "Summons a bag of assorted jewelry", },
-    { spell = "Summon Pouch of Jerikor", bag = "Phantom Satchel", items = { "Calliav's Platinum Choker", "Calliav's Runed Mantle", "Calliav's Jeweled Bracelet", "Calliav's Spiked Ring", "Calliav's Glowing Bauble", "Calliav's Steel Bracelet", }, level = 68, desc = "Summons a bag of fine jewelry", },
+    { spell = "Summon Jewelry Bag",      bag = "Phantom Satchel", items = { "Jedah's Platinum Choker", "Tavee's Runed Mantle", "Gallenite's Sapphire Bracelet", "Naki's Spiked Ring", "Jolum's Glowing Bauble", "Rallican's Steel Bracelet" },      level = 63, desc = "Summons a bag of assorted jewelry" },
+    { spell = "Summon Pouch of Jerikor", bag = "Phantom Satchel", items = { "Calliav's Platinum Choker", "Calliav's Runed Mantle", "Calliav's Jeweled Bracelet", "Calliav's Spiked Ring", "Calliav's Glowing Bauble", "Calliav's Steel Bracelet" }, level = 68, desc = "Summons a bag of fine jewelry" },
 }
 
 local function GetThemeNames()
@@ -238,6 +239,16 @@ local function drawToggle(label, value)
     return value
 end
 
+local function getHoverColor()
+    if currentTheme == "Water Mage" then
+        return ImVec4(0.3, 0.6, 0.9, 1)
+    elseif currentTheme == "Fire Mage" then
+        return ImVec4(0.9, 0.5, 0.3, 1)
+    else
+        return ImVec4(0.3, 0.8, 0.3, 1)
+    end
+end
+
 local function mageGear(open)
     local main_viewport = imgui.GetMainViewport()
     imgui.SetNextWindowPos(main_viewport.WorkPos.x + 600, main_viewport.WorkPos.y + 20, ImGuiCond.FirstUseEver)
@@ -245,7 +256,7 @@ local function mageGear(open)
 
     local ColorCount, StyleCount = Themes.StartTheme(currentTheme, ThemeData)
     local show = false
-    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.1", open)
+    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.2", open)
 
     if not open then
         openGUI = false
@@ -300,10 +311,11 @@ local function mageGear(open)
     end
     imgui.SameLine()
     imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 0.8 + math.sin(os.clock() * 2) * 0.2))
+    imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button("Summon") then
         doSummonPet = true
     end
-    imgui.PopStyleColor()
+    imgui.PopStyleColor(2)
 
     imgui.Separator()
 
@@ -365,6 +377,7 @@ local function mageGear(open)
         end
     end
 
+    imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button('Self') then
         GearTarget = 'Self'
         doRun = true
@@ -387,6 +400,7 @@ local function mageGear(open)
             MGear('\arError\ax: Not in a group')
         end
     end
+    imgui.PopStyleColor()
 
     lastPriWep = petPriWep
     lastSecWep = petSecWep
@@ -442,21 +456,14 @@ local function memorizeSpell(spell)
     local lastGem = getLastGem()
     local curGem = mq.TLO.Me.Gem(spell)() or 0
 
-    -- printf("Spell %s Gem: %s", spell, curGem)
-
-    -- printf("SpellGem: %s, CurrentSpell: %s DesiredSpell: %s", lastGem, mq.TLO.Me.Gem(lastGem).Name() or 'None', spell)
-
     if curGem > 0 then
         flag = true
     elseif curGem == 0 then
         local command = string.format("/memspell %s \"%s\"", lastGem, spell)
         mq.cmdf("%s", command)
         mq.delay(20)
-        -- printf(command)
         MGear('\amMemorizing \ax' .. spell .. ' in gem ' .. lastGem)
-
         mq.delay(5000, function() return mq.TLO.Me.Gem(lastGem).Name() == spell end)
-
         if ((mq.TLO.Me.Gem(spell)() or 0) == 0) then
             MGear('\arError\ax: Failed to memorize ' .. spell .. ' in gem Slot: ' .. lastGem)
             flag = false
@@ -467,7 +474,6 @@ local function memorizeSpell(spell)
     else
         flag = true
     end
-
     return flag
 end
 
@@ -490,7 +496,6 @@ local function summonPet(pet)
     while not mq.TLO.Me.SpellReady(pet.spell)() and os.time() < timeout do
         mq.delay(500)
     end
-    mq.TLO.Me.SpellReady(pet.spell)()
     if not mq.TLO.Me.SpellReady(pet.spell)() then
         MGear('\arError\ax: Gem not ready for ' .. pet.spell)
         return false
@@ -552,6 +557,10 @@ local function summonItem(spellData)
     while not mq.TLO.Me.SpellReady(spellData.spell)() and os.time() < timeout do
         mq.delay(500)
     end
+    if not mq.TLO.Me.SpellReady(spellData.spell)() then
+        MGear('\arError\ax: Gem not ready for ' .. spellData.spell)
+        return false
+    end
 
     mq.cmdf('/cast "%s"', spellData.spell)
     mq.delay(2000)
@@ -565,9 +574,9 @@ local function summonItem(spellData)
         return false
     end
 
+    MGear('\agSummoned: \ax' .. (spellData.item or spellData.bag or spellData.spell))
     return true
 end
-
 
 local function handCursorToPet()
     while mq.TLO.Cursor.ID() do
@@ -582,11 +591,16 @@ local function handCursorToPet()
         while mq.TLO.Window("GiveWnd").Open() and os.time() < timeout do
             mq.delay(100)
         end
+        if mq.TLO.Window("GiveWnd").Open() then
+            MGear('\ayWarning\ax: Give window still open, closing manually')
+            mq.cmd('/notify GiveWnd GVW_Cancel_Button leftmouseup')
+        end
     end
 end
 
 local function moveToPet(targetPet)
     mq.cmdf('/tar %s', targetPet)
+    mq.delay(500)
     if not mq.TLO.Target.ID() then
         MGear('\arError\ax: Could not target ' .. targetPet)
         return false
@@ -594,6 +608,7 @@ local function moveToPet(targetPet)
     if mq.TLO.Target.Distance() <= 20 then
         return true
     else
+        MGear('\ayNavigating to \ax' .. targetPet)
         mq.cmd('/nav target')
         return false
     end
@@ -605,35 +620,43 @@ local function giveItemToPet(targetPet)
     local success = true
 
     if moveToPet(targetPet) then
+        -- Weapons first
         if doWeapons and success then
             success = summonItem(petWeps[petPriWep + 1])
+            if success then handCursorToPet() end
             if success then success = summonItem(petWeps[petSecWep + 1]) end
             if success then handCursorToPet() end
         end
 
-        if doArmor and success then
-            success = summonItem(armorSpells[selectedArmor + 1])
-            if success then handCursorToPet() end
-        end
-
-        if doJewelry and success then
-            success = summonItem(jewelrySpells[selectedJewelry + 1])
-            if success then handCursorToPet() end
-        end
-
+        -- Belt next
         if doBelt and success then
             success = summonItem(beltSpells[selectedBelt + 1])
             if success then handCursorToPet() end
         end
 
+        -- Mask
         if doMask and success then
             success = summonItem(maskSpells[selectedMask + 1])
             if success then handCursorToPet() end
         end
+
+        -- Armor (bag)
+        if doArmor and success then
+            success = summonItem(armorSpells[selectedArmor + 1])
+            if success then handCursorToPet() end
+        end
+
+        -- Jewelry (bag)
+        if doJewelry and success then
+            success = summonItem(jewelrySpells[selectedJewelry + 1])
+            if success then handCursorToPet() end
+        end
+
         needMove = false
         return success
     else
         needMove = true
+        return false
     end
 end
 
@@ -709,7 +732,7 @@ while openGUI do
                 for i = 0, groupSize do
                     local member = mq.TLO.Group.Member(i)
                     if member() and member.Pet.ID() > 0 then
-                        local tradePetName = member.Pet.CleanName()
+                        tradePetName = member.Pet.CleanName()
                         success = success and giveItemToPet(tradePetName)
                     elseif member() then
                         MGear('\aySkipping \ax' .. member.Name() .. ' - no pet')
