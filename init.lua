@@ -1,7 +1,7 @@
---[[ Mage Gear by RedFrog v2.3.4 (DoN EMU Adjusted) Started: March 29, 2025
+--[[ Mage Gear by RedFrog v2.3.5 (DoN EMU Adjusted) Started: March 29, 2025
     Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
     Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
-    Fixed: Distance check before casting, pet validation, casting/cursor issues, loop control, added nav delay, restored hover colors
+    Fixed: Distance check before casting, pet validation, casting/cursor issues, loop control, added nav delay, fixed hover colors
 ]]
 
 local mq = require('mq')
@@ -257,7 +257,7 @@ local function mageGear(open)
 
     local ColorCount, StyleCount = Themes.StartTheme(currentTheme, ThemeData)
     local show = false
-    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.4", open)
+    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.5", open)
 
     if not open then
         openGUI = false
@@ -378,30 +378,45 @@ local function mageGear(open)
         end
     end
 
-    imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
+    -- Self Button
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1)) -- Green base
+    imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor()) -- Theme-based hover
     if imgui.Button('Self') then
         GearTarget = 'Self'
         doRun = true
+        MGear('\aySelf button hovered color applied')
     end
+    imgui.PopStyleColor(2)
     imgui.SameLine()
+
+    -- Target Button
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))
+    imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button('Target') then
         if mq.TLO.Target.ID() > 0 then
             GearTarget = 'Target'
             doRun = true
+            MGear('\ayTarget button hovered color applied')
         else
             MGear('\arError\ax: No target')
         end
     end
+    imgui.PopStyleColor(2)
     imgui.SameLine()
+
+    -- Group Button
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))
+    imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button('Group') then
         if mq.TLO.Group() then
             GearTarget = 'Group'
             doRun = true
+            MGear('\ayGroup button hovered color applied')
         else
             MGear('\arError\ax: Not in a group')
         end
     end
-    imgui.PopStyleColor()
+    imgui.PopStyleColor(2)
 
     lastPriWep = petPriWep
     lastSecWep = petSecWep
@@ -649,7 +664,7 @@ local function moveToPet(targetPet)
         end
         if distance <= 20 then
             MGear('\ayReached ' .. targetPet .. ', pausing...')
-            mq.delay(1000) -- Delay after navigation completes
+            mq.delay(1000)
             return true
         else
             MGear('\arError\ax: Too far from ' .. targetPet .. ' (Distance: ' .. distance .. ')')
@@ -666,7 +681,6 @@ local function giveItemToPet(targetPet)
         return false
     end
 
-    -- Move to pet first and check distance
     if not moveToPet(targetPet) then
         needMove = true
         return false
@@ -674,7 +688,6 @@ local function giveItemToPet(targetPet)
 
     local success = true
 
-    -- Weapons first
     if doWeapons and success then
         success = summonItem(petWeps[petPriWep + 1])
         if success then handCursorToPet() end
@@ -682,25 +695,21 @@ local function giveItemToPet(targetPet)
         if success then handCursorToPet() end
     end
 
-    -- Belt next
     if doBelt and success then
         success = summonItem(beltSpells[selectedBelt + 1])
         if success then handCursorToPet() end
     end
 
-    -- Mask
     if doMask and success then
         success = summonItem(maskSpells[selectedMask + 1])
         if success then handCursorToPet() end
     end
 
-    -- Armor (bag)
     if doArmor and success then
         success = summonItem(armorSpells[selectedArmor + 1])
         if success then handCursorToPet() end
     end
 
-    -- Jewelry (bag)
     if doJewelry and success then
         success = summonItem(jewelrySpells[selectedJewelry + 1])
         if success then handCursorToPet() end
