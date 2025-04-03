@@ -9,18 +9,12 @@ local imgui = require('ImGui')
 local Icons = require('mq.ICONS')
 local Themes = require('theme_loader')
 local ThemeData = require('themes')
+local Utils = require('mq.Utils')
 
 local doRun = false
 local doSummonPet = false
 local openGUI = true
 local GearTarget = 'Self'
-local petPriWep = 0
-local petSecWep = 0
-local selectedPet = 0
-local selectedBelt = 0
-local selectedMask = 0
-local selectedArmor = 0
-local selectedJewelry = 0
 local lastPriWep = -1
 local lastSecWep = -1
 local lastPet = -1
@@ -28,95 +22,104 @@ local lastBelt = -1
 local lastMask = -1
 local lastArmor = -1
 local lastJewelry = -1
-local doWeapons = true
-local doBelt = false
-local doMask = false
-local doArmor = false
-local doJewelry = false
-local keepBags = false
 local lastComboChange = {}
-local currentTheme = "Grape"
+local tradePetName = ''
+local MyName = mq.TLO.Me.CleanName()
+local settings = {}
+local settingsFile = string.format("%s/mage_gear_%s.lua", mq.configDir, MyName)
+
+local defaults = {
+    currentTheme = "Grape",
+    petPriWep = 1,
+    petSecWep = 1,
+    selectedPet = 1,
+    selectedBelt = 1,
+    selectedMask = 1,
+    selectedArmor = 1,
+    selectedJewelry = 1,
+    doWeapons = true,
+    doBelt = false,
+    doMask = false,
+    doArmor = false,
+    doJewelry = false,
+    keepBags = false,
+}
 
 -- Full Weapons Table
-local petWeps = {
-    { spell = "Summon Fireblade",               item = "Summoned: Fireblade",               level = 66, desc = "A blazing magical blade" },
-    { spell = "Summon Staff of the North Wind", item = "Summoned: Staff of the North Wind", level = 67, desc = "A staff imbued with icy winds" },
-    { spell = "Blade of the Kedge",             item = "Summoned: Blade of the Kedge",      level = 63, desc = "A sharp aquatic blade" },
-    { spell = "Fist of Ixiblat",                item = "Summoned: Hand of Ixiblat",         level = 62, desc = "A fiery fist weapon" },
-    { spell = "Blade of Walnan",                item = "Summoned: Blade of Walnan",         level = 61, desc = "A sturdy enchanted sword" },
-    { spell = "Dagger of Symbols",              item = "Summoned: Dagger of Symbols",       level = 35, desc = "A rune-etched dagger" },
-    { spell = "Staff of Symbols",               item = "Summoned: Staff of Symbols",        level = 33, desc = "A staff covered in runes" },
-    { spell = "Sword of Runes",                 item = "Summoned: Sword of Runes",          level = 26, desc = "A sword with mystical runes" },
-    { spell = "Staff of Runes",                 item = "Summoned: Staff of Runes",          level = 24, desc = "A rune-carved staff" },
-    { spell = "Spear of Warding",               item = "Summoned: Spear of Warding",        level = 20, desc = "A protective spear" },
-    { spell = "Staff of Warding",               item = "Summoned: Staff of Warding",        level = 14, desc = "A staff of defense" },
-    { spell = "Summon Fang",                    item = "Summoned: Fang",                    level = 9,  desc = "A sharp summoned tooth" },
-    { spell = "Staff of Tracing",               item = "Summoned: Staff of Tracing",        level = 8,  desc = "A basic magical staff" },
-    { spell = "Summon Dagger",                  item = "Summoned: Dagger",                  level = 1,  desc = "A simple conjured dagger" },
-}
+local petWeps = {}
 
 -- Full Pet Spells Table
-local petSpells = {
-    { spell = "Call of the Arch Mage",      level = 70, desc = "Summons a powerful elemental servant" },
-    { spell = "Greater Conjuration: Water", level = 66, desc = "Summons a strong water elemental" },
-    { spell = "Greater Conjuration: Fire",  level = 65, desc = "Summons a strong fire elemental" },
-    { spell = "Greater Conjuration: Air",   level = 64, desc = "Summons a strong air elemental" },
-    { spell = "Greater Conjuration: Earth", level = 63, desc = "Summons a strong earth elemental" },
-    { spell = "Servant of Marr",            level = 62, desc = "Summons a devoted servant of Marr" },
-    { spell = "Conjuration: Water",         level = 54, desc = "Summons a water elemental" },
-    { spell = "Conjuration: Fire",          level = 53, desc = "Summons a fire elemental" },
-    { spell = "Conjuration: Air",           level = 52, desc = "Summons an air elemental" },
-    { spell = "Conjuration: Earth",         level = 51, desc = "Summons an earth elemental" },
-    { spell = "Lesser Conjuration: Water",  level = 44, desc = "Summons a lesser water elemental" },
-    { spell = "Lesser Conjuration: Fire",   level = 43, desc = "Summons a lesser fire elemental" },
-    { spell = "Lesser Conjuration: Air",    level = 42, desc = "Summons a lesser air elemental" },
-    { spell = "Lesser Conjuration: Earth",  level = 41, desc = "Summons a lesser earth elemental" },
-    { spell = "Greater Summoning: Water",   level = 34, desc = "Summons a water elemental ally" },
-    { spell = "Greater Summoning: Fire",    level = 33, desc = "Summons a fire elemental ally" },
-    { spell = "Greater Summoning: Air",     level = 32, desc = "Summons an air elemental ally" },
-    { spell = "Greater Summoning: Earth",   level = 31, desc = "Summons an earth elemental ally" },
-    { spell = "Summoning: Water",           level = 24, desc = "Summons a basic water elemental" },
-    { spell = "Summoning: Fire",            level = 23, desc = "Summons a basic fire elemental" },
-    { spell = "Summoning: Air",             level = 22, desc = "Summons a basic air elemental" },
-    { spell = "Summoning: Earth",           level = 21, desc = "Summons a basic earth elemental" },
-    { spell = "Lesser Summoning: Water",    level = 16, desc = "Summons a weak water elemental" },
-    { spell = "Lesser Summoning: Fire",     level = 15, desc = "Summons a weak fire elemental" },
-    { spell = "Lesser Summoning: Air",      level = 14, desc = "Summons a weak air elemental" },
-    { spell = "Lesser Summoning: Earth",    level = 13, desc = "Summons a weak earth elemental" },
-    { spell = "Minor Summoning: Water",     level = 8,  desc = "Summons a minor water elemental" },
-    { spell = "Minor Summoning: Fire",      level = 7,  desc = "Summons a minor fire elemental" },
-    { spell = "Minor Summoning: Air",       level = 6,  desc = "Summons a minor air elemental" },
-    { spell = "Minor Summoning: Earth",     level = 5,  desc = "Summons a minor earth elemental" },
-    { spell = "Elemental: Water",           level = 4,  desc = "Summons a tiny water elemental" },
-    { spell = "Elemental: Fire",            level = 3,  desc = "Summons a tiny fire elemental" },
-    { spell = "Elemental: Air",             level = 2,  desc = "Summons a tiny air elemental" },
-    { spell = "Elemental: Earth",           level = 1,  desc = "Summons a tiny earth elemental" },
-}
+local petSpells = {}
 
 -- Full Belt Spells Table
-local beltSpells = {
-    { spell = "Crystal Belt",       item = "Summoned: Crystal Belt",       level = 67, desc = "A shimmering crystal belt" },
-    { spell = "Girdle of Magi`Kot", item = "Summoned: Girdle of Magi`Kot", level = 64, desc = "A sturdy magical girdle" },
-    { spell = "Belt of Magi`Kot",   item = "Summoned: Belt of Magi`Kot",   level = 61, desc = "A simple mage's belt" },
-}
+local beltSpells = {}
 
 -- Full Mask Spells Table
-local maskSpells = {
-    { spell = "Muzzle of Mardu", item = "Summoned: Muzzle of Mardu", level = 56, desc = "A mystical muzzle mask" },
-}
+local maskSpells = {}
 
 -- Full Armor Spells Table
-local armorSpells = {
-    { spell = "Summon Phantom Leather", bag = "Phantom Satchel", items = { "Phantom Leather Skullcap", "Phantom Leather Tunic", "Phantom Leather Sleeves", "Phantom Leather Bracer", "Phantom Leather Bracer", "Phantom Leather Gloves", "Phantom Leather Leggings", "Phantom Leather Boots" }, level = 56, desc = "Summons a bag of leather armor" },
-    { spell = "Summon Phantom Chain",   bag = "Phantom Satchel", items = { "Phantom Chain Coif", "Phantom Chain Coat", "Phantom Chain Sleeves", "Phantom Chain Bracer", "Phantom Chain Bracer", "Phantom Chain Gloves", "Phantom Chain Greaves", "Phantom Chain Boots" },                       level = 61, desc = "Summons a bag of chain armor" },
-    { spell = "Summon Phantom Plate",   bag = "Phantom Satchel", items = { "Phantom Plate Helm", "Phantom Breastplate", "Phantom Plate Vambraces", "Phantom Plate Bracers", "Phantom Plate Bracers", "Phantom Plate Gauntlets", "Phantom Plate Greaves", "Phantom Plate Boots" },               level = 65, desc = "Summons a bag of plate armor" },
-}
+local armorSpells = {}
 
 -- Full Jewelry Spells Table
 local jewelrySpells = {
-    { spell = "Summon Jewelry Bag",      bag = "Phantom Satchel", items = { "Jedah's Platinum Choker", "Tavee's Runed Mantle", "Gallenite's Sapphire Bracelet", "Naki's Spiked Ring", "Jolum's Glowing Bauble", "Rallican's Steel Bracelet" },      level = 63, desc = "Summons a bag of assorted jewelry" },
-    { spell = "Summon Pouch of Jerikor", bag = "Phantom Satchel", items = { "Calliav's Platinum Choker", "Calliav's Runed Mantle", "Calliav's Jeweled Bracelet", "Calliav's Spiked Ring", "Calliav's Glowing Bauble", "Calliav's Steel Bracelet" }, level = 68, desc = "Summons a bag of fine jewelry" },
+    -- { spell = "Summon Jewelry Bag",      bag = "Phantom Satchel", items = { "Jedah's Platinum Choker", "Tavee's Runed Mantle", "Gallenite's Sapphire Bracelet", "Naki's Spiked Ring", "Jolum's Glowing Bauble", "Rallican's Steel Bracelet", },      level = 63, desc = "Summons a bag of assorted jewelry", },
+    -- { spell = "Summon Pouch of Jerikor", bag = "Phantom Satchel", items = { "Calliav's Platinum Choker", "Calliav's Runed Mantle", "Calliav's Jeweled Bracelet", "Calliav's Spiked Ring", "Calliav's Glowing Bauble", "Calliav's Steel Bracelet", }, level = 68, desc = "Summons a bag of fine jewelry", },
 }
+
+local function getSpells()
+    petSpells = {}
+    beltSpells = {}
+    maskSpells = {}
+    armorSpells = {}
+    -- jewelrySpells = {}
+    petWeps = {}
+
+    for i = 1, 1000 do
+        local bookSpell = mq.TLO.Me.Book(i)
+        if bookSpell() then
+            local spellName = bookSpell.Name()
+            local spellCat = bookSpell.Category() or 'None'
+            local spellSubCat = bookSpell.Subcategory() or 'None'
+            local spellLvl = bookSpell.Level() or 0
+            local spellDesc = bookSpell.Description() or 'None'
+            local lowerName = spellName:lower()
+            if spellCat == 'Pet' then
+                if spellSubCat:find('Sum:') then
+                    table.insert(petSpells, { spell = spellName, level = spellLvl, desc = spellDesc, })
+                elseif lowerName:find('monster summoning') or lowerName:find('zomm') then
+                    table.insert(petSpells, { spell = spellName, level = spellLvl, desc = spellDesc, })
+                end
+
+                goto next_spell
+            end
+            if spellCat == "Create Item" then
+                if spellSubCat == "Misc" then
+                    if lowerName:find('belt') or lowerName:find('girdle') then
+                        table.insert(beltSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    end
+                    if lowerName:find('mask') or lowerName:find('muzzle') then
+                        table.insert(maskSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    end
+                elseif spellSubCat == "Summon Armor" then
+                    table.insert(armorSpells, { spell = spellName, bag = "Phantom Satchel", items = {}, level = spellLvl, desc = spellDesc, })
+                elseif spellSubCat == "Summon Weapon" then
+                    table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                elseif spellSubCat == ("Summon Focus") then
+                    table.insert(jewelrySpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                elseif lowerName:find("jewelry bag") or lowerName:find("pouch of jerikor") then
+                    table.insert(jewelrySpells, { spell = spellName, item = spellName, bag = "Phantom Satchel", level = spellLvl, desc = spellDesc, })
+                end
+            end
+        end
+        ::next_spell::
+    end
+    table.sort(petSpells, function(a, b) return a.level > b.level end)
+    table.sort(beltSpells, function(a, b) return a.level > b.level end)
+    table.sort(maskSpells, function(a, b) return a.level > b.level end)
+    table.sort(armorSpells, function(a, b) return a.level > b.level end)
+    table.sort(petWeps, function(a, b) return a.level > b.level end)
+    table.sort(jewelrySpells, function(a, b) return a.level > b.level end)
+end
 
 local function GetThemeNames()
     local names = {}
@@ -127,7 +130,7 @@ local function GetThemeNames()
 end
 local themeNames = GetThemeNames()
 
-local function MGear(msg)
+function MGear(msg)
     mq.cmdf('/echo \aw[\agMageGear\aw] %s', msg)
 end
 
@@ -145,67 +148,168 @@ local function setBestDefault(table)
 end
 
 local function loadSettings()
-    local savedTheme = mq.TLO.Ini("magegear.ini", "Settings", "LastTheme", "Grape")()
-    currentTheme = savedTheme
+    if Utils.File.Exists(settingsFile) then
+        settings = dofile(settingsFile)
+    else
+        settings = defaults
+        mq.pickle(settingsFile, settings)
+    end
+    for k, v in pairs(defaults) do
+        if settings[k] == nil then
+            settings[k] = v
+        end
+    end
 end
 
 local function saveSettings()
-    mq.cmdf('/ini "magegear.ini" "Settings" "LastTheme" "%s"', currentTheme)
+    mq.pickle(settingsFile, settings)
 end
 
+
+local function EventHandler(line, who, what)
+    if who == nil then return end
+    printf("\ayDEBUG\ax: \ag%s \at%s", who, what or "list toys")
+    if what ~= nil then
+        mq.cmdf("/multiline ; /target %s; /tell %s Summoning %s", who, who, what)
+        mq.delay(500)
+        local targetPet = mq.TLO.Target.Pet.ID() or 0
+        if targetPet == 0 then
+            MGear('\arError\ax: Target has No pet summoned')
+            return
+        end
+        if what == 'all' then
+            settings.doWeapons = true
+            settings.doBelt = true
+            settings.doMask = true
+            settings.doArmor = true
+            settings.doJewelry = true
+        elseif what == "weapons" then
+            settings.doWeapons = true
+            settings.doBelt = false
+            settings.doMask = false
+            settings.doArmor = false
+            settings.doJewelry = false
+        elseif what == "belt" then
+            settings.doWeapons = false
+            settings.doBelt = true
+            settings.doMask = false
+            settings.doArmor = false
+            settings.doJewelry = false
+        elseif what == "mask" then
+            settings.doWeapons = false
+            settings.doBelt = false
+            settings.doMask = true
+            settings.doArmor = false
+            settings.doJewelry = false
+        elseif what == "armor" then
+            settings.doArmor = true
+            settings.doWeapons = false
+            settings.doBelt = false
+            settings.doMask = false
+            settings.doJewelry = false
+        elseif what == "jewelry" then
+            settings.doWeapons = false
+            settings.doBelt = false
+            settings.doMask = false
+            settings.doArmor = false
+            settings.doJewelry = true
+        else
+            MGear('\arError\ax: Invalid option. Use weapons, belt, mask, armor, or jewelry.')
+            return
+        end
+
+        if mq.TLO.Target.ID() > 0 then
+            GearTarget = 'Target'
+            doRun = true
+            MGear('\ayTarget button hovered color applied')
+        else
+            MGear('\arError\ax: No target')
+        end
+    else
+        local reply = string.format("/tell %s Summon Toys Key words [weapons, belt, mask, armor, jewelry] or [all]", who)
+
+        mq.cmdf(reply)
+    end
+end
+
+local function hailed(line, who)
+    if not who then return end
+    local reply = string.format("/tell %s Send me a tell for toys /tell %s toys 'type' : or /tell %s list toys", who, MyName, MyName)
+    mq.cmdf(reply)
+end
+
+
+local function BuildEvents()
+    --Grimshad tells you, 'toys'
+    mq.event('mage_toys', "#1# tells you, 'toys #2#'#*#", EventHandler)
+    mq.event("list_toys", "#1# tells you, 'list toys'#*#", EventHandler)
+    local hailMsg = string.format("#1# says, 'Hail, %s'", MyName)
+    mq.event("mage_hailed", hailMsg, hailed)
+end
+
+getSpells()
+loadSettings()
 local function init()
     if mq.TLO.Me.Class() ~= 'Magician' then
         MGear('\arError\ax: You are not a Magician! Program ending!')
         return false
     end
-    petPriWep = setBestDefault(petWeps)
-    petSecWep = petPriWep
-    selectedPet = setBestDefault(petSpells)
-    selectedBelt = setBestDefault(beltSpells)
-    selectedMask = setBestDefault(maskSpells)
-    selectedArmor = setBestDefault(armorSpells)
-    selectedJewelry = setBestDefault(jewelrySpells)
-    lastPriWep = petPriWep
-    lastSecWep = petSecWep
-    lastPet = selectedPet
-    lastBelt = selectedBelt
-    lastMask = selectedMask
-    lastArmor = selectedArmor
-    lastJewelry = selectedJewelry
-    loadSettings()
+    lastPriWep = settings.petPriWep
+    lastSecWep = settings.petSecWep
+    lastPet = settings.selectedPet
+    lastBelt = settings.selectedBelt
+    lastMask = settings.selectedMask
+    lastArmor = settings.selectedArmor
+    lastJewelry = settings.selectedJewelry
+
     MGear('\apGreetings Mage! What would you like to Summon?')
     return true
 end
 
+
+BuildEvents()
+
 openGUI = init()
 
 local function drawCombo(label, current, items, isPet)
-    local comboValue = current
+    local comboValue = current > 0 and current or 1
     imgui.PushID(label)
-    if not items[comboValue + 1] then
-        MGear('\arError: Invalid index ' .. comboValue .. ' for ' .. label)
-        comboValue = 0
+
+    local spellName
+    local spellLevel
+    local displayText
+
+    for idx, item in ipairs(items) do
+        if idx == current then
+            spellName = item.spell or ""
+            spellLevel = item.level or 0
+            displayText = spellName .. " (Level " .. spellLevel .. ")"
+            break
+        end
     end
-    local displayText = items[comboValue + 1].spell .. (isPet and (" (Level " .. items[comboValue + 1].level .. ")") or "")
     if imgui.BeginCombo(label, displayText) then
         for i, item in ipairs(items) do
             local bookCheck = mq.TLO.Me.Book(item.spell)()
             local inBook = bookCheck and bookCheck > 0
             local color = inBook and ImVec4(0, 1, 0, 1) or ImVec4(0.5, 0.5, 0.5, 1)
             imgui.PushStyleColor(ImGuiCol.Text, color)
-            local itemText = item.spell .. (isPet and (" (Level " .. item.level .. ")") or "")
-            local isSelected = (comboValue == i - 1)
+            local itemText = item.spell .. (" (Level " .. item.level .. ")")
+            local isSelected = (comboValue == i)
             if imgui.Selectable(itemText, isSelected) and inBook then
                 local lastChange = lastComboChange[label] or -1
-                if comboValue ~= i - 1 and os.clock() - lastChange > 0.5 then
-                    comboValue = i - 1
+                if comboValue ~= i and os.clock() - lastChange > 0.5 then
+                    comboValue = i
                     lastComboChange[label] = os.clock()
                 end
             end
             if imgui.IsItemHovered() then
                 imgui.BeginTooltip()
-                imgui.Text(item.spell .. " (Level " .. item.level .. ")")
-                imgui.Text(item.desc)
+                imgui.Text(item.spell)
+                ImGui.SameLine()
+                ImGui.TextColored(ImVec4(1, 1, 0, 1), string.format(" (%s)", item.level))
+                ImGui.PushTextWrapPos(200)
+                imgui.TextColored(ImVec4(1, 1, 1, 0.8), item.desc)
+                ImGui.PopTextWrapPos()
                 imgui.EndTooltip()
             end
             if isSelected then
@@ -241,9 +345,9 @@ local function drawToggle(label, value)
 end
 
 local function getHoverColor()
-    if currentTheme == "Water Mage" then
+    if settings.currentTheme == "Water Mage" then
         return ImVec4(0.3, 0.6, 0.9, 1)
-    elseif currentTheme == "Fire Mage" then
+    elseif settings.currentTheme == "Fire Mage" then
         return ImVec4(0.9, 0.5, 0.3, 1)
     else
         return ImVec4(0.3, 0.8, 0.3, 1)
@@ -255,7 +359,7 @@ local function mageGear(open)
     imgui.SetNextWindowPos(main_viewport.WorkPos.x + 600, main_viewport.WorkPos.y + 20, ImGuiCond.FirstUseEver)
     imgui.SetNextWindowSize(350, 400, ImGuiCond.FirstUseEver)
 
-    local ColorCount, StyleCount = Themes.StartTheme(currentTheme, ThemeData)
+    local ColorCount, StyleCount = Themes.StartTheme(settings.currentTheme, ThemeData)
     local show = false
     open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.5", open)
 
@@ -275,11 +379,11 @@ local function mageGear(open)
     imgui.Text("Theme:")
     imgui.SameLine()
     imgui.SetNextItemWidth(150)
-    if imgui.BeginCombo("##Theme", currentTheme) then
+    if imgui.BeginCombo("##Theme", settings.currentTheme) then
         for _, themeName in ipairs(themeNames) do
-            local isSelected = (themeName == currentTheme)
+            local isSelected = (themeName == settings.currentTheme)
             if imgui.Selectable(themeName, isSelected) then
-                currentTheme = themeName
+                settings.currentTheme = themeName
                 saveSettings()
             end
             if isSelected then imgui.SetItemDefaultFocus() end
@@ -305,10 +409,10 @@ local function mageGear(open)
     imgui.Text("Malachites: " .. malachiteCount)
     imgui.PopStyleColor()
 
-    local newSelectedPet = drawCombo("", selectedPet, petSpells, true)
-    if newSelectedPet ~= selectedPet then
-        selectedPet = newSelectedPet
-        MGear('\aySelected: ' .. petSpells[selectedPet + 1].spell .. ' (Index ' .. selectedPet .. ')')
+    local newSelectedPet = drawCombo("", settings.selectedPet, petSpells, true)
+    if newSelectedPet ~= settings.selectedPet then
+        settings.selectedPet = newSelectedPet
+        MGear('\aySelected: ' .. petSpells[settings.selectedPet].spell .. ' (Index ' .. settings.selectedPet .. ')')
     end
     imgui.SameLine()
     imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 0.8 + math.sin(os.clock() * 2) * 0.2))
@@ -321,65 +425,65 @@ local function mageGear(open)
     imgui.Separator()
 
     imgui.Text("Summon Options:")
-    doWeapons = drawToggle("Weapons", doWeapons)
+    settings.doWeapons = drawToggle("Weapons", settings.doWeapons)
     imgui.SameLine()
-    doBelt = drawToggle("Belt", doBelt)
+    settings.doBelt = drawToggle("Belt", settings.doBelt)
     imgui.SameLine()
-    doMask = drawToggle("Mask", doMask)
-    doArmor = drawToggle("Armor", doArmor)
+    settings.doMask = drawToggle("Mask", settings.doMask)
+    settings.doArmor = drawToggle("Armor", settings.doArmor)
     imgui.SameLine()
-    doJewelry = drawToggle("Jewelry", doJewelry)
+    settings.doJewelry = drawToggle("Jewelry", settings.doJewelry)
     imgui.SameLine()
-    keepBags = drawToggle("Keep Bags", keepBags)
+    settings.keepBags = drawToggle("Keep Bags", settings.keepBags)
     imgui.Separator()
 
-    if doWeapons then
-        local newPetPriWep = drawCombo("Primary", petPriWep, petWeps, false)
-        if newPetPriWep ~= petPriWep then
-            petPriWep = newPetPriWep
-            MGear('\aySelected Primary: ' .. petWeps[petPriWep + 1].spell .. ' (Index ' .. petPriWep .. ')')
+    if settings.doWeapons and #petWeps > 0 then
+        local newPetPriWep = drawCombo("Primary", settings.petPriWep, petWeps, false)
+        if newPetPriWep ~= settings.petPriWep then
+            settings.petPriWep = newPetPriWep
+            MGear('\aySelected Primary: ' .. petWeps[settings.petPriWep].spell .. ' (Index ' .. settings.petPriWep .. ')')
         end
-        local newPetSecWep = drawCombo("Secondary", petSecWep, petWeps, false)
-        if newPetSecWep ~= petSecWep then
-            petSecWep = newPetSecWep
-            MGear('\aySelected Secondary: ' .. petWeps[petSecWep + 1].spell .. ' (Index ' .. petSecWep .. ')')
-        end
-    end
-
-    if doBelt then
-        local newSelectedBelt = drawCombo("Belt", selectedBelt, beltSpells, false)
-        if newSelectedBelt ~= selectedBelt then
-            selectedBelt = newSelectedBelt
-            MGear('\aySelected Belt: ' .. beltSpells[selectedBelt + 1].spell .. ' (Index ' .. selectedBelt .. ')')
+        local newPetSecWep = drawCombo("Secondary", settings.petSecWep, petWeps, false)
+        if newPetSecWep ~= settings.petSecWep then
+            settings.petSecWep = newPetSecWep
+            MGear('\aySelected Secondary: ' .. petWeps[settings.petSecWep].spell .. ' (Index ' .. settings.petSecWep .. ')')
         end
     end
 
-    if doMask then
-        local newSelectedMask = drawCombo("Mask", selectedMask, maskSpells, false)
-        if newSelectedMask ~= selectedMask then
-            selectedMask = newSelectedMask
-            MGear('\aySelected Mask: ' .. maskSpells[selectedMask + 1].spell .. ' (Index ' .. selectedMask .. ')')
+    if settings.doBelt and #beltSpells > 0 then
+        local newSelectedBelt = drawCombo("Belt", settings.selectedBelt, beltSpells, false)
+        if newSelectedBelt ~= settings.selectedBelt then
+            settings.selectedBelt = newSelectedBelt
+            MGear('\aySelected Belt: ' .. beltSpells[settings.selectedBelt].spell .. ' (Index ' .. settings.selectedBelt .. ')')
         end
     end
 
-    if doArmor then
-        local newSelectedArmor = drawCombo("Armor", selectedArmor, armorSpells, false)
-        if newSelectedArmor ~= selectedArmor then
-            selectedArmor = newSelectedArmor
-            MGear('\aySelected Armor: ' .. armorSpells[selectedArmor + 1].spell .. ' (Index ' .. selectedArmor .. ')')
+    if settings.doMask and #maskSpells > 0 then
+        local newSelectedMask = drawCombo("Mask", settings.selectedMask, maskSpells, false)
+        if newSelectedMask ~= settings.selectedMask then
+            settings.selectedMask = newSelectedMask
+            MGear('\aySelected Mask: ' .. maskSpells[settings.selectedMask].spell .. ' (Index ' .. settings.selectedMask .. ')')
         end
     end
 
-    if doJewelry then
-        local newSelectedJewelry = drawCombo("Jewelry", selectedJewelry, jewelrySpells, false)
-        if newSelectedJewelry ~= selectedJewelry then
-            selectedJewelry = newSelectedJewelry
-            MGear('\aySelected Jewelry: ' .. jewelrySpells[selectedJewelry + 1].spell .. ' (Index ' .. selectedJewelry .. ')')
+    if settings.doArmor and #armorSpells > 0 then
+        local newSelectedArmor = drawCombo("Armor", settings.selectedArmor, armorSpells, false)
+        if newSelectedArmor ~= settings.selectedArmor then
+            settings.selectedArmor = newSelectedArmor
+            MGear('\aySelected Armor: ' .. armorSpells[settings.selectedArmor].spell .. ' (Index ' .. settings.selectedArmor .. ')')
+        end
+    end
+
+    if settings.doJewelry and #jewelrySpells > 0 then
+        local newSelectedJewelry = drawCombo("Jewelry", settings.selectedJewelry, jewelrySpells, false)
+        if newSelectedJewelry ~= settings.selectedJewelry then
+            settings.selectedJewelry = newSelectedJewelry
+            MGear('\aySelected Jewelry: ' .. jewelrySpells[settings.selectedJewelry].spell .. ' (Index ' .. settings.selectedJewelry .. ')')
         end
     end
 
     -- Self Button
-    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1)) -- Green base
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))     -- Green base
     imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor()) -- Theme-based hover
     if imgui.Button('Self') then
         GearTarget = 'Self'
@@ -418,13 +522,13 @@ local function mageGear(open)
     end
     imgui.PopStyleColor(2)
 
-    lastPriWep = petPriWep
-    lastSecWep = petSecWep
-    lastPet = selectedPet
-    lastBelt = selectedBelt
-    lastMask = selectedMask
-    lastArmor = selectedArmor
-    lastJewelry = selectedJewelry
+    lastPriWep = settings.petPriWep
+    lastSecWep = settings.petSecWep
+    lastPet = settings.selectedPet
+    lastBelt = settings.selectedBelt
+    lastMask = settings.selectedMask
+    lastArmor = settings.selectedArmor
+    lastJewelry = settings.selectedJewelry
 
     imgui.End()
     Themes.EndTheme(ColorCount, StyleCount)
@@ -688,30 +792,30 @@ local function giveItemToPet(targetPet)
 
     local success = true
 
-    if doWeapons and success then
-        success = summonItem(petWeps[petPriWep + 1])
+    if settings.doWeapons and success then
+        success = summonItem(petWeps[settings.petPriWep])
         if success then handCursorToPet() end
-        if success then success = summonItem(petWeps[petSecWep + 1]) end
-        if success then handCursorToPet() end
-    end
-
-    if doBelt and success then
-        success = summonItem(beltSpells[selectedBelt + 1])
+        if success then success = summonItem(petWeps[settings.petSecWep]) end
         if success then handCursorToPet() end
     end
 
-    if doMask and success then
-        success = summonItem(maskSpells[selectedMask + 1])
+    if settings.doBelt and success then
+        success = summonItem(beltSpells[settings.selectedBelt])
         if success then handCursorToPet() end
     end
 
-    if doArmor and success then
-        success = summonItem(armorSpells[selectedArmor + 1])
+    if settings.doMask and success then
+        success = summonItem(maskSpells[settings.selectedMask])
         if success then handCursorToPet() end
     end
 
-    if doJewelry and success then
-        success = summonItem(jewelrySpells[selectedJewelry + 1])
+    if settings.doArmor and success then
+        success = summonItem(armorSpells[settings.selectedArmor])
+        if success then handCursorToPet() end
+    end
+
+    if settings.doJewelry and success then
+        success = summonItem(jewelrySpells[settings.selectedJewelry])
         if success then handCursorToPet() end
     end
 
@@ -726,34 +830,33 @@ function table.contains(table, element)
     return false
 end
 
-local tradePetName = ''
-
 while openGUI do
+    mq.doevents()
     mq.delay(500)
 
     while doSummonPet do
-        local petSpell = petSpells[selectedPet + 1]
+        local petSpell = petSpells[settings.selectedPet]
         summonPet(petSpell)
         doSummonPet = false
     end
 
     while doRun do
         local itemsToSummon = {}
-        if doWeapons then
-            itemsToSummon[#itemsToSummon + 1] = 'Primary=' .. petWeps[petPriWep + 1].spell
-            itemsToSummon[#itemsToSummon + 1] = 'Secondary=' .. petWeps[petSecWep + 1].spell
+        if settings.doWeapons then
+            itemsToSummon[#itemsToSummon] = 'Primary=' .. petWeps[settings.petPriWep].spell
+            itemsToSummon[#itemsToSummon] = 'Secondary=' .. petWeps[settings.petSecWep].spell
         end
-        if doBelt then
-            itemsToSummon[#itemsToSummon + 1] = 'Belt=' .. beltSpells[selectedBelt + 1].spell
+        if settings.doBelt then
+            itemsToSummon[#itemsToSummon] = 'Belt=' .. beltSpells[settings.selectedBelt].spell
         end
-        if doMask then
-            itemsToSummon[#itemsToSummon + 1] = 'Mask=' .. maskSpells[selectedMask + 1].spell
+        if settings.doMask then
+            itemsToSummon[#itemsToSummon] = 'Mask=' .. maskSpells[settings.selectedMask].spell
         end
-        if doArmor then
-            itemsToSummon[#itemsToSummon + 1] = 'Armor=' .. armorSpells[selectedArmor + 1].spell
+        if settings.doArmor then
+            itemsToSummon[#itemsToSummon] = 'Armor=' .. armorSpells[settings.selectedArmor].spell
         end
-        if doJewelry then
-            itemsToSummon[#itemsToSummon + 1] = 'Jewelry=' .. jewelrySpells[selectedJewelry + 1].spell
+        if settings.doJewelry then
+            itemsToSummon[#itemsToSummon] = 'Jewelry=' .. jewelrySpells[settings.selectedJewelry].spell
         end
         MGear('\amPreparing to summon: \ax' .. table.concat(itemsToSummon, ', '))
 
@@ -811,3 +914,6 @@ while openGUI do
     end
 end
 saveSettings()
+mq.unevent('mage_toys')
+mq.unevent('list_toys')
+mq.unevent("mage_hailed")
