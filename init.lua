@@ -807,10 +807,10 @@ local function summonItem(spellData)
         return false
     end
 
-    if spellData.bag and not checkFreeMainSlot() then
-        MGear('\ayFree a main inventory slot to use ' .. spellData.spell)
-        return false
-    end
+    -- if spellData.bag and not checkFreeMainSlot() then
+    --     MGear('\ayFree a main inventory slot to use ' .. spellData.spell)
+    --     return false
+    -- end
 
     if not memorizeSpell(spellData.spell) then return false end
 
