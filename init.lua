@@ -16,6 +16,8 @@ local doSummonPet = false
 local openGUI = true
 local GearTarget = 'Self'
 local lastPriWep = -1
+local lastFocus = -1
+local lastPlayerItem = -1
 local lastSecWep = -1
 local lastPet = -1
 local lastBelt = -1
@@ -37,6 +39,10 @@ local defaults = {
     selectedMask = 1,
     selectedArmor = 1,
     selectedJewelry = 1,
+    selectedFocus = 1,
+    selectedPlayerItem = 1,
+    doFocus = false,
+    doPC = false,
     doWeapons = true,
     doBelt = false,
     doMask = false,
@@ -60,6 +66,10 @@ local maskSpells = {}
 -- Full Armor Spells Table
 local armorSpells = {}
 
+local focusSpells = {}
+
+local playerItems = {}
+
 -- Full Jewelry Spells Table
 local jewelrySpells = {
     -- { spell = "Summon Jewelry Bag",      bag = "Phantom Satchel", items = { "Jedah's Platinum Choker", "Tavee's Runed Mantle", "Gallenite's Sapphire Bracelet", "Naki's Spiked Ring", "Jolum's Glowing Bauble", "Rallican's Steel Bracelet", },      level = 63, desc = "Summons a bag of assorted jewelry", },
@@ -73,9 +83,10 @@ local function getSpells()
     beltSpells = {}
     maskSpells = {}
     armorSpells = {}
-    -- jewelrySpells = {}
+    jewelrySpells = {}
+    focusSpells = {}
+    playerItems = {}
     petWeps = {}
-
     for i = 1, 1000 do
         local bookSpell = mq.TLO.Me.Book(i)
         if bookSpell() then
@@ -105,9 +116,13 @@ local function getSpells()
                 elseif spellSubCat == "Summon Armor" then
                     table.insert(armorSpells, { spell = spellName, bag = "Phantom Satchel", items = {}, level = spellLvl, desc = spellDesc, })
                 elseif spellSubCat == "Summon Weapon" then
-                    table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
-                elseif spellSubCat == ("Summon Focus") then
-                    table.insert(jewelrySpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    if lowerName:find('quiver') or lowerName:find('pouch') or lowerName:find('bandoleer') or lowerName:find('arrow') then
+                        table.insert(playerItems, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    else
+                        table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    end
+                elseif spellSubCat == "Summon Focus" then
+                    table.insert(focusSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                 elseif lowerName:find("jewelry bag") or lowerName:find("pouch of jerikor") then
                     table.insert(jewelrySpells, { spell = spellName, item = spellName, bag = "Phantom Satchel", level = spellLvl, desc = spellDesc, })
                 end
@@ -121,6 +136,8 @@ local function getSpells()
     table.sort(armorSpells, function(a, b) return a.level > b.level end)
     table.sort(petWeps, function(a, b) return a.level > b.level end)
     table.sort(jewelrySpells, function(a, b) return a.level > b.level end)
+    table.sort(focusSpells, function(a, b) return a.level > b.level end)
+    table.sort(playerItems, function(a, b) return a.level > b.level end)
 end
 
 local function GetThemeNames()
@@ -190,43 +207,70 @@ local function EventHandler(line, who, what)
             settings.doMask = true
             settings.doArmor = true
             settings.doJewelry = true
+            settings.doFocus = true
+            settings.doPlayer = false
         elseif what == "weapons" then
             settings.doWeapons = true
             settings.doBelt = false
             settings.doMask = false
             settings.doArmor = false
             settings.doJewelry = false
+            settings.doFocus = false
+            settings.doPlayer = false
         elseif what == "belt" then
             settings.doWeapons = false
             settings.doBelt = true
             settings.doMask = false
             settings.doArmor = false
             settings.doJewelry = false
+            settings.doFocus = false
+            settings.doPlayer = false
         elseif what == "mask" then
             settings.doWeapons = false
             settings.doBelt = false
             settings.doMask = true
             settings.doArmor = false
             settings.doJewelry = false
+            settings.doFocus = false
+            settings.doPlayer = false
         elseif what == "armor" then
             settings.doArmor = true
             settings.doWeapons = false
             settings.doBelt = false
             settings.doMask = false
             settings.doJewelry = false
+            settings.doFocus = false
+            settings.doPlayer = false
         elseif what == "jewelry" then
             settings.doWeapons = false
             settings.doBelt = false
             settings.doMask = false
             settings.doArmor = false
             settings.doJewelry = true
+            settings.doFocus = false
+            settings.doPlayer = false
+        elseif what == "focus" then
+            settings.doWeapons = false
+            settings.doBelt = false
+            settings.doMask = false
+            settings.doArmor = false
+            settings.doJewelry = false
+            settings.doPlayer = false
+            settings.doFocus = true
+        elseif what == "player" then
+            settings.doWeapons = false
+            settings.doBelt = false
+            settings.doMask = false
+            settings.doArmor = false
+            settings.doJewelry = false
+            settings.doFocus = false
+            settings.doPlayer = true
         else
             MGear('\arError\ax: Invalid option. Use weapons, belt, mask, armor, or jewelry.')
             return
         end
 
         if mq.TLO.Target.ID() > 0 then
-            GearTarget = 'Target'
             doRun = true
             MGear('\ayTarget button hovered color applied')
         else
@@ -269,6 +313,17 @@ local function ListItems(line, who)
         catName = 'jewelry'
         category = jewelrySpells
         subLine = line:sub(line:find("jewelry") + 8)
+    elseif line:find('focus') then
+        catName = 'focus'
+        category = focusSpells
+        subLine = line:sub(line:find("focus") + 6)
+    elseif line:find('player') then
+        catName = 'player'
+        category = playerItems
+        subLine = line:sub(line:find("player") + 7)
+    else
+        MGear('\arError\ax: Invalid option. Use weapons, belt, mask, armor, focus, player, or jewelry.')
+        return
     end
     if not category or #category == 0 then
         MGear('\arError\ax: No items found in this category')
@@ -312,18 +367,24 @@ local function setCategories(cat)
         settings.doMask = true
         settings.doArmor = true
         settings.doJewelry = true
+        settings.doFocus = true
+        settings.doPlayer = false
     elseif cat == 'none' then
         settings.doWeapons = false
         settings.doBelt = false
         settings.doMask = false
         settings.doArmor = false
         settings.doJewelry = false
+        settings.doFocus = false
+        settings.doPlayer = false
     else
         settings.doWeapons = false
         settings.doBelt = false
         settings.doMask = false
         settings.doArmor = false
         settings.doJewelry = false
+        settings.doFocus = false
+        settings.doPlayer = false
         settings['do' .. properCase(cat)] = true
     end
 end
@@ -338,7 +399,7 @@ local function ItemHandler(line, who, cat)
     mq.cmdf("/multiline ; /target %s; /tell %s Summoning %s", who, who, cat)
     mq.delay(500)
     local targetPet = mq.TLO.Target.Pet.ID() or 0
-    if targetPet == 0 then
+    if targetPet == 0 and cat ~= 'player' and cat ~= 'focus' then
         MGear('\arError\ax: Target has No pet summoned')
         return
     end
@@ -371,6 +432,17 @@ local function ItemHandler(line, who, cat)
         settings.selectedJewelry = tonumber(indexes[1]) or lastJewelry
         settings.doJewelry = true
         setCategories(cat)
+    elseif cat == 'focus' then
+        settings.selectedFocus = tonumber(indexes[1]) or lastFocus
+        settings.doFocus = true
+        setCategories(cat)
+    elseif cat == 'player' then
+        settings.selectedPlayerItem = tonumber(indexes[1]) or lastPlayerItem
+        settings.doPlayer = true
+        setCategories(cat)
+    else
+        MGear('\arError\ax: Invalid option. Use weapons, belt, mask, armor, focus, player, or jewelry.')
+        return
     end
 
     if mq.TLO.Target.ID() > 0 then
@@ -387,7 +459,7 @@ local function hailed(line, who)
     local reply = string.format("/tell %s Send me a tell for toys /tell %s toys 'type' : or /tell %s list toys for a list of categories", who, MyName, MyName)
     mq.cmdf(reply)
     mq.delay(1000)
-    reply = string.format("/tell %s Send me a tell for items /tell %s list weapons, belt, mask, armor, or jewelry", who, MyName)
+    reply = string.format("/tell %s Send me a tell for items /tell %s list weapons, belt, mask, armor, focus, player, or jewelry", who, MyName)
     mq.cmdf(reply)
 end
 
@@ -403,13 +475,16 @@ local function BuildEvents()
     mq.event("list_items4", "#1# tells you, 'list mask'#*#", ListItems)
     mq.event("list_items5", "#1# tells you, 'list armor'#*#", ListItems)
     mq.event("list_items6", "#1# tells you, 'list jewelry'#*#", ListItems)
+    mq.event("list_items7", "#1# tells you, 'list focus'#*#", ListItems)
+    mq.event("list_items8", "#1# tells you, 'list player'#*#", ListItems)
     mq.event('mage_weapons', "#1# tells you, 'weapons #*#'#*#", function(line, who, what) ItemHandler(line, who, "weapons") end)
     mq.event('mage_armor', "#1# tells you, 'armor #*#'#*#", function(line, who, what) ItemHandler(line, who, "armor") end)
     mq.event('mage_mask', "#1# tells you, 'mask #*#'#*#", function(line, who, what) ItemHandler(line, who, "mask") end)
     mq.event('mage_jewelry', "#1# tells you, 'jewelry #*#'#*#", function(line, who, what) ItemHandler(line, who, "jewelry") end)
     mq.event('mage_jewlery', "#1# tells you, 'jewlery #*#'#*#", function(line, who, what) ItemHandler(line, who, "jewelry") end)
-
+    mq.event('mage_focus', "#1# tells you, 'focus #*#'#*#", function(line, who, what) ItemHandler(line, who, "focus") end)
     mq.event('mage_belt', "#1# tells you, 'belt #2#'#*#", function(line, who, what) ItemHandler(line, who, "belt") end)
+    mq.event('mage_player', "#1# tells you, 'player #2#'#*#", function(line, who, what) ItemHandler(line, who, "player") end)
 end
 
 getSpells()
@@ -426,6 +501,8 @@ local function init()
     lastMask = settings.selectedMask
     lastArmor = settings.selectedArmor
     lastJewelry = settings.selectedJewelry
+    lastFocus = settings.selectedFocus
+    lastPlayerItem = settings.selectedPlayerItem
 
     MGear('\apGreetings Mage! What would you like to Summon?')
     return true
@@ -436,30 +513,39 @@ BuildEvents()
 
 openGUI = init()
 
+--- Draws a combo box for selecting a spell.
+--- @param label string: Unique label for the combo box (used for ID).
+--- @param current integer: The current selection index, or 0 if none is selected.
+--- @param items table: A list of spell tables with `spell`, `level`, and `desc` fields.
+--- @param isPet boolean: Whether this combo is pet-specific (not used here, reserved for future).
+--- @return integer: The updated selected index.
 local function drawCombo(label, current, items, isPet)
-    local comboValue = current > 0 and current or 1
+    local comboValue = current
     imgui.PushID(label)
 
-    local spellName
-    local spellLevel
-    local displayText
-
-    for idx, item in ipairs(items) do
-        if idx == current then
-            spellName = item.spell or ""
-            spellLevel = item.level or 0
-            displayText = spellName .. " (Level " .. spellLevel .. ")"
-            break
-        end
+    local displayText = "Select a spell"
+    if current > 0 and items[current] then
+        local spellName = items[current].spell or ""
+        local spellLevel = items[current].level or 0
+        displayText = string.format("%s (Level %d)", spellName, spellLevel)
     end
+
     if imgui.BeginCombo(label, displayText) then
+        -- Dummy "Select a spell" row
+        imgui.PushStyleColor(ImGuiCol.Text, ImVec4(0.7, 0.7, 0.7, 1))
+        if imgui.Selectable("Select a spell", comboValue == 0) then
+            comboValue = 0
+        end
+        imgui.PopStyleColor()
+
         for i, item in ipairs(items) do
             local bookCheck = mq.TLO.Me.Book(item.spell)()
             local inBook = bookCheck and bookCheck > 0
             local color = inBook and ImVec4(0, 1, 0, 1) or ImVec4(0.5, 0.5, 0.5, 1)
-            imgui.PushStyleColor(ImGuiCol.Text, color)
-            local itemText = item.spell .. (" (Level " .. item.level .. ")")
             local isSelected = (comboValue == i)
+            local itemText = string.format("%s (Level %d)", item.spell, item.level)
+
+            imgui.PushStyleColor(ImGuiCol.Text, color)
             if imgui.Selectable(itemText, isSelected) and inBook then
                 local lastChange = lastComboChange[label] or -1
                 if comboValue ~= i and os.clock() - lastChange > 0.5 then
@@ -469,24 +555,25 @@ local function drawCombo(label, current, items, isPet)
             end
             if imgui.IsItemHovered() then
                 imgui.BeginTooltip()
-                imgui.Text(item.spell)
+                imgui.Text(item.spell or "")
                 ImGui.SameLine()
-                ImGui.TextColored(ImVec4(1, 1, 0, 1), string.format(" (%s)", item.level))
+                ImGui.TextColored(ImVec4(1, 1, 0, 1), string.format(" (Level %d)", item.level or 0))
                 ImGui.PushTextWrapPos(200)
-                imgui.TextColored(ImVec4(1, 1, 1, 0.8), item.desc)
-                ImGui.PopTextWrapPos()
+                imgui.TextColored(ImVec4(1, 1, 1, 0.8), item.desc or "")
+                imgui.PopTextWrapPos()
                 imgui.EndTooltip()
             end
-            if isSelected then
-                imgui.SetItemDefaultFocus()
-            end
+            if isSelected then imgui.SetItemDefaultFocus() end
             imgui.PopStyleColor()
         end
         imgui.EndCombo()
     end
+
     imgui.PopID()
     return comboValue
 end
+
+
 
 local function drawToggle(label, value)
     imgui.Text(label .. ":")
@@ -593,13 +680,19 @@ local function mageGear(open)
     settings.doWeapons = drawToggle("Weapons", settings.doWeapons)
     imgui.SameLine()
     settings.doBelt = drawToggle("Belt", settings.doBelt)
-    imgui.SameLine()
+
     settings.doMask = drawToggle("Mask", settings.doMask)
-    settings.doArmor = drawToggle("Armor", settings.doArmor)
     imgui.SameLine()
+    settings.doArmor = drawToggle("Armor", settings.doArmor)
+
     settings.doJewelry = drawToggle("Jewelry", settings.doJewelry)
     imgui.SameLine()
+    settings.doFocus = drawToggle("Focus", settings.doFocus)
+
+    settings.doPlayer = drawToggle("Player", settings.doPlayer)
+    ImGui.SameLine()
     settings.keepBags = drawToggle("Keep Bags", settings.keepBags)
+
     imgui.Separator()
 
     if settings.doWeapons and #petWeps > 0 then
@@ -644,6 +737,22 @@ local function mageGear(open)
         if newSelectedJewelry ~= settings.selectedJewelry then
             settings.selectedJewelry = newSelectedJewelry
             MGear('\aySelected Jewelry: ' .. jewelrySpells[settings.selectedJewelry].spell .. ' (Index ' .. settings.selectedJewelry .. ')')
+        end
+    end
+
+    if settings.doFocus and #focusSpells > 0 then
+        local newSelectedFocus = drawCombo("Focus", settings.selectedFocus, focusSpells, false)
+        if newSelectedFocus ~= settings.selectedFocus then
+            settings.selectedFocus = newSelectedFocus
+            MGear('\aySelected Focus: ' .. focusSpells[settings.selectedFocus].spell .. ' (Index ' .. settings.selectedFocus .. ')')
+        end
+    end
+
+    if settings.doPlayer and #playerItems > 0 then
+        local newSelectedPlayerItem = drawCombo("Player Item", settings.selectedPlayerItem, playerItems, false)
+        if newSelectedPlayerItem ~= settings.selectedPlayerItem then
+            settings.selectedPlayerItem = newSelectedPlayerItem
+            MGear('\aySelected Player Item: ' .. playerItems[settings.selectedPlayerItem].spell .. ' (Index ' .. settings.selectedPlayerItem .. ')')
         end
     end
 
@@ -694,6 +803,8 @@ local function mageGear(open)
     lastMask = settings.selectedMask
     lastArmor = settings.selectedArmor
     lastJewelry = settings.selectedJewelry
+    lastFocus = settings.selectedFocus
+    lastPlayerItem = settings.selectedPlayerItem
 
     imgui.End()
     Themes.EndTheme(ColorCount, StyleCount)
@@ -777,8 +888,8 @@ local function summonPet(pet)
     if not memorizeSpell(pet.spell) then return false end
 
     MGear('\amCasting \ax' .. pet.spell)
-    local timeout = os.time() + 10
-    while not mq.TLO.Me.SpellReady(pet.spell)() and os.time() < timeout do
+    local timeout = os.clock() + mq.TLO.Spell(pet.spell).MyCastTime.TotalSeconds()
+    while not mq.TLO.Me.SpellReady(pet.spell)() and os.clock() < timeout do
         mq.delay(500)
     end
     if not mq.TLO.Me.SpellReady(pet.spell)() then
@@ -789,9 +900,9 @@ local function summonPet(pet)
     mq.cmdf('/cast "%s"', pet.spell)
     mq.delay(3000)
 
-    timeout = os.time() + 15
+    timeout = os.clock() + mq.TLO.Spell(pet.spell).MyCastTime.TotalSeconds()
     local castAttempts = 0
-    while not mq.TLO.Me.Casting() and os.time() < timeout do
+    while not mq.TLO.Me.Casting() and os.clock() < timeout do
         if mq.TLO.Me.SpellReady(pet.spell)() and castAttempts < 3 then
             castAttempts = castAttempts + 1
             MGear('\ayRetrying cast attempt ' .. castAttempts .. ' for ' .. pet.spell)
@@ -800,16 +911,16 @@ local function summonPet(pet)
         mq.delay(500)
     end
 
-    if not mq.TLO.Me.Casting() then
+    if not mq.TLO.Cursor() then
         MGear('\arError\ax: Casting ' .. pet.spell .. ' failed after ' .. castAttempts .. ' attempts')
         return false
     end
 
-    timeout = os.time() + 15
-    while mq.TLO.Me.Casting() and os.time() < timeout do mq.delay(500) end
+    timeout = os.clock() + mq.TLO.Spell(pet.spell).MyCastTime.TotalSeconds()
+    while mq.TLO.Me.Casting() and os.clock() < timeout do mq.delay(500) end
 
-    timeout = os.time() + 10
-    while not mq.TLO.Me.Pet.ID() and os.time() < timeout do mq.delay(500) end
+    timeout = os.clock() + mq.TLO.Spell(pet.spell).MyCastTime.TotalSeconds()
+    while not mq.TLO.Me.Pet.ID() and os.clock() < timeout do mq.delay(500) end
     if not mq.TLO.Me.Pet.ID() then
         MGear('\arError\ax: No pet summoned after casting ' .. pet.spell)
         return false
@@ -820,6 +931,7 @@ local function summonPet(pet)
 end
 
 local function summonItem(spellData)
+    if not spellData then return false end
     if not mq.TLO.Me.Book(spellData.spell)() then
         MGear('\arError\ax: ' .. spellData.spell .. ' not in your spellbook')
         return false
@@ -839,8 +951,8 @@ local function summonItem(spellData)
     if not memorizeSpell(spellData.spell) then return false end
 
     MGear('\amCasting \ax' .. spellData.spell)
-    local timeout = os.time() + 10
-    while not mq.TLO.Me.SpellReady(spellData.spell)() and os.time() < timeout do
+    local timeout = os.clock() + 10
+    while not mq.TLO.Me.SpellReady(spellData.spell)() and os.clock() < timeout do
         mq.delay(500)
     end
     if not mq.TLO.Me.SpellReady(spellData.spell)() then
@@ -850,34 +962,30 @@ local function summonItem(spellData)
 
     mq.cmdf('/cast "%s"', spellData.spell)
     mq.delay(3000)
-
-    timeout = os.time() + 15
+    local castTime = mq.TLO.Spell(spellData.spell) ~= nil and mq.TLO.Spell(spellData.spell).CastTime.TotalSeconds() or 0
     local castAttempts = 0
-    while not mq.TLO.Me.Casting() and os.time() < timeout do
+    while not mq.TLO.Me.Casting() and castAttempts < 4 do
         if mq.TLO.Me.SpellReady(spellData.spell)() and castAttempts < 3 then
             castAttempts = castAttempts + 1
             MGear('\ayRetrying cast attempt ' .. castAttempts .. ' for ' .. spellData.spell)
             mq.cmdf('/cast "%s"', spellData.spell)
+            castAttempts = castAttempts + 1
         end
+        mq.delay(2000, function() return mq.TLO.Me.Casting() end)
+    end
+
+    while mq.TLO.Me.Casting() do
         mq.delay(500)
     end
 
-    if not mq.TLO.Me.Casting() then
-        MGear('\arError\ax: Casting ' .. spellData.spell .. ' failed after ' .. castAttempts .. ' attempts')
-        return false
-    end
-
-    timeout = os.time() + 15
-    while mq.TLO.Me.Casting() and os.time() < timeout do mq.delay(500) end
-
-    timeout = os.time() + 10
     local cursorAttempts = 0
-    while not mq.TLO.Cursor.ID() and os.time() < timeout do
+    while not mq.TLO.Cursor() and cursorAttempts < 4 do
         cursorAttempts = cursorAttempts + 1
         MGear('\ayWaiting for cursor, attempt ' .. cursorAttempts)
-        mq.delay(1000)
+        mq.delay(1000, function() return mq.TLO.Cursor() end)
     end
-    if not mq.TLO.Cursor.ID() then
+
+    if not mq.TLO.Cursor() then
         MGear('\arError\ax: No item on cursor after casting ' .. spellData.spell)
         return false
     end
@@ -890,13 +998,17 @@ local function handCursorToPet()
     while mq.TLO.Cursor.ID() do
         mq.cmd('/click left target')
         mq.delay(700)
+        if mq.TLO.Window("GiveWnd/GVW_MyItemSlot3").Tooltip() and mq.TLO.Window("GiveWnd/GVW_MyItemSlot3").Tooltip() ~= '' then
+            mq.cmd('/notify GiveWnd GVW_Give_Button leftmouseup')
+            mq.delay(500)
+        end
     end
 
     if mq.TLO.Window("GiveWnd").Open() then
         mq.cmd('/notify GiveWnd GVW_Give_Button leftmouseup')
         mq.delay(500)
-        local timeout = os.time() + 5
-        while mq.TLO.Window("GiveWnd").Open() and os.time() < timeout do
+        local timeout = os.clock() + 5
+        while mq.TLO.Window("GiveWnd").Open() and os.clock() < timeout do
             mq.delay(100)
         end
         if mq.TLO.Window("GiveWnd").Open() then
@@ -906,37 +1018,62 @@ local function handCursorToPet()
     end
 end
 
-local function moveToPet(targetPet)
-    if not targetPet then
+local function handCursorToPlayer()
+    -- ${Window[TradeWnd].Child[TRDW_TradeSlot7]}
+    --${Window[TradeWnd].Child[TRDW_Trade_Button]}
+    while mq.TLO.Cursor.ID() do
+        mq.cmd('/click left target')
+        mq.delay(700)
+        if mq.TLO.Window("TradeWnd/TRDW_TradeSlot7").Tooltip() and mq.TLO.Window("TradeWnd/TRDW_TradeSlot7").Tooltip() ~= '' then
+            mq.cmd('/notify TradeWnd TRDW_Trade_Button leftmouseup')
+            mq.delay(500)
+        end
+    end
+    if mq.TLO.Window("TradeWnd").Open() and not mq.TLO.Cursor() then
+        mq.cmd('/notify TradeWnd TRDW_Trade_Button leftmouseup')
+        mq.delay(500)
+        local timeout = os.clock() + 50
+        while mq.TLO.Window("TradeWnd").Open() and os.clock() < timeout do
+            mq.delay(100)
+        end
+        if mq.TLO.Window("TradeWnd").Open() then
+            MGear('\ayWarning\ax: Give window still open, closing manually')
+            mq.cmd('/notify TradeWnd TRDW_Cancel_Button leftmouseup')
+        end
+    end
+end
+
+local function moveToPet(target)
+    if not target then
         MGear('\arError\ax: No pet name provided')
         return false
     end
-    mq.cmdf('/tar %s', targetPet)
+    mq.cmdf('/tar %s', target)
     mq.delay(500)
     if not mq.TLO.Target.ID() then
-        MGear('\arError\ax: Could not target ' .. targetPet)
+        MGear('\arError\ax: Could not target ' .. target)
         return false
     end
     local distance = mq.TLO.Target.Distance() or 999
-    MGear('\ayDistance to ' .. targetPet .. ': ' .. distance)
+    MGear('\ayDistance to ' .. target .. ': ' .. distance)
     if distance <= 20 then
         return true
     else
-        MGear('\ayNavigating to \ax' .. targetPet)
+        MGear('\ayNavigating to \ax' .. target)
         mq.cmd('/nav target')
-        local timeout = os.time() + 15
-        while mq.TLO.Navigation.Active() and os.time() < timeout do
+        local timeout = os.clock() + 15
+        while mq.TLO.Navigation.Active() and os.clock() < timeout do
             mq.delay(500)
             distance = mq.TLO.Target.Distance() or 999
             MGear('\ayCurrent distance: ' .. distance)
             if distance <= 20 then break end
         end
         if distance <= 20 then
-            MGear('\ayReached ' .. targetPet .. ', pausing...')
+            MGear('\ayReached ' .. target .. ', pausing...')
             mq.delay(1000)
             return true
         else
-            MGear('\arError\ax: Too far from ' .. targetPet .. ' (Distance: ' .. distance .. ')')
+            MGear('\arError\ax: Too far from ' .. target .. ' (Distance: ' .. distance .. ')')
             return false
         end
     end
@@ -944,7 +1081,7 @@ end
 
 local needMove = false
 
-local function giveItemToPet(targetPet)
+local function giveItemToPet(targetPet, isPet)
     if not targetPet then
         MGear('\arError\ax: Invalid pet name')
         return false
@@ -956,34 +1093,50 @@ local function giveItemToPet(targetPet)
     end
 
     local success = true
+    if not isPet then
+        if settings.doFocus and settings.selectedFocus > 0 then
+            success = summonItem(focusSpells[settings.selectedFocus])
+            if success then
+                handCursorToPlayer()
+                needMove = false
+            end
+        end
 
-    if settings.doWeapons and success and settings.petPriWep > 0 then
-        success = summonItem(petWeps[settings.petPriWep])
-        if success then handCursorToPet() end
-        if success and settings.petSecWep > 0 then success = summonItem(petWeps[settings.petSecWep]) end
-        if success then handCursorToPet() end
+        if settings.doPlayer and settings.selectedPlayerItem > 0 then
+            success = summonItem(playerItems[settings.selectedPlayerItem])
+            if success then
+                handCursorToPlayer()
+                needMove = false
+            end
+        end
+    else
+        if settings.doWeapons and settings.petPriWep > 0 then
+            success = summonItem(petWeps[settings.petPriWep])
+            if success then handCursorToPet() end
+            if success and settings.petSecWep > 0 then success = summonItem(petWeps[settings.petSecWep]) end
+            if success then handCursorToPet() end
+        end
+
+        if settings.doBelt and settings.selectedBelt > 0 then
+            success = summonItem(beltSpells[settings.selectedBelt])
+            if success then handCursorToPet() end
+        end
+
+        if settings.doMask and settings.selectedMask > 0 then
+            success = summonItem(maskSpells[settings.selectedMask])
+            if success then handCursorToPet() end
+        end
+
+        if settings.doArmor and settings.selectedArmor > 0 then
+            success = summonItem(armorSpells[settings.selectedArmor])
+            if success then handCursorToPet() end
+        end
+
+        if settings.doJewelry and settings.selectedJewelry > 0 then
+            success = summonItem(jewelrySpells[settings.selectedJewelry])
+            if success then handCursorToPet() end
+        end
     end
-
-    if settings.doBelt and success and settings.selectedBelt > 0 then
-        success = summonItem(beltSpells[settings.selectedBelt])
-        if success then handCursorToPet() end
-    end
-
-    if settings.doMask and success and settings.selectedBelt > 0 then
-        success = summonItem(maskSpells[settings.selectedMask])
-        if success then handCursorToPet() end
-    end
-
-    if settings.doArmor and success and settings.selectedArmor > 0 then
-        success = summonItem(armorSpells[settings.selectedArmor])
-        if success then handCursorToPet() end
-    end
-
-    if settings.doJewelry and success and settings.selectedJewelry > 0 then
-        success = summonItem(jewelrySpells[settings.selectedJewelry])
-        if success then handCursorToPet() end
-    end
-
     needMove = false
     return success
 end
@@ -1007,31 +1160,54 @@ while openGUI do
 
     while doRun do
         local itemsToSummon = {}
-        if settings.doWeapons then
-            itemsToSummon[#itemsToSummon] = 'Primary=' .. petWeps[settings.petPriWep].spell
-            itemsToSummon[#itemsToSummon] = 'Secondary=' .. petWeps[settings.petSecWep].spell
+        if settings.doWeapons and #petWeps > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Primary=' .. petWeps[settings.petPriWep].spell
+            if settings.petSecWep and settings.petSecWep > 0 then
+                itemsToSummon[#itemsToSummon + 1] = 'Secondary=' .. petWeps[settings.petSecWep].spell
+            end
         end
-        if settings.doBelt then
-            itemsToSummon[#itemsToSummon] = 'Belt=' .. beltSpells[settings.selectedBelt].spell
+        if settings.doBelt and #beltSpells > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Belt=' .. beltSpells[settings.selectedBelt].spell
         end
-        if settings.doMask then
-            itemsToSummon[#itemsToSummon] = 'Mask=' .. maskSpells[settings.selectedMask].spell
+        if settings.doMask and #maskSpells > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Mask=' .. maskSpells[settings.selectedMask].spell
         end
-        if settings.doArmor then
-            itemsToSummon[#itemsToSummon] = 'Armor=' .. armorSpells[settings.selectedArmor].spell
+        if settings.doArmor and #armorSpells > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Armor=' .. armorSpells[settings.selectedArmor].spell
         end
-        if settings.doJewelry then
-            itemsToSummon[#itemsToSummon] = 'Jewelry=' .. jewelrySpells[settings.selectedJewelry].spell
+        if settings.doJewelry and #jewelrySpells > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Jewelry=' .. jewelrySpells[settings.selectedJewelry].spell
         end
-        MGear('\amPreparing to summon: \ax' .. table.concat(itemsToSummon, ', '))
+        if settings.doFocus and #focusSpells > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Focus=' .. focusSpells[settings.selectedFocus].spell
+        end
+        if settings.doPlayer and #playerItems > 0 then
+            itemsToSummon[#itemsToSummon + 1] = 'Player=' .. playerItems[settings.selectedPlayerItem].spell
+        end
+        -- MGear('\amPreparing to summon: \ax' .. table.concat(itemsToSummon, ', '))
 
         local success = false
+        local playerTrades = (settings.doFocus or settings.doPlayer)
+        -- do player trades first
+        if playerTrades then
+            local tradePlayer = mq.TLO.Target
+            if not tradePlayer() then
+                MGear('\arError\ax: Invalid target')
+            else
+                success = giveItemToPet(tradePlayer.CleanName(), false)
+                if success then
+                    MGear('\agSummoning Player Items complete')
+                end
+            end
+        end
+
+        -- pet trades
         if GearTarget == 'Self' then
             if not mq.TLO.Me.Pet.ID() then
                 MGear('\arError\ax: You do not have a pet')
             else
                 tradePetName = mq.TLO.Me.Pet.CleanName()
-                success = giveItemToPet(tradePetName)
+                success = giveItemToPet(tradePetName, true)
                 if success then
                     MGear('\agSummoning complete')
                 end
@@ -1044,7 +1220,7 @@ while openGUI do
                 if not tradePetName then
                     MGear('\arError\ax: Target has no pet')
                 else
-                    success = giveItemToPet(tradePetName)
+                    success = giveItemToPet(tradePetName, true)
                     if success then
                         MGear('\agSummoning complete')
                     end
@@ -1060,7 +1236,7 @@ while openGUI do
                     local member = mq.TLO.Group.Member(i)
                     if member() and member.Pet.ID() > 0 then
                         tradePetName = member.Pet.CleanName()
-                        success = success and giveItemToPet(tradePetName)
+                        success = success and giveItemToPet(tradePetName, true)
                     elseif member() then
                         MGear('\aySkipping \ax' .. member.Name() .. ' - no pet')
                     end
@@ -1087,4 +1263,15 @@ mq.unevent("list_items3")
 mq.unevent("list_items4")
 mq.unevent("list_items5")
 mq.unevent("list_items6")
+mq.unevent("list_items7")
+mq.unevent("list_items8")
+mq.unevent('mage_weapons')
+mq.unevent('mage_armor')
+mq.unevent('mage_mask')
+mq.unevent('mage_jewelry')
+mq.unevent('mage_jewlery')
+mq.unevent('mage_belt')
+mq.unevent('mage_toys')
+mq.unevent('mage_focus')
+mq.unevent('mage_player')
 mq.cmd('/echo \aw[\agMageGear\aw] \arProgram terminated')
