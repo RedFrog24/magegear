@@ -168,7 +168,6 @@ end
 
 local function EventHandler(line, who, what)
     if who == nil then return end
-    printf("\ayDEBUG\ax: \ag%s \at%s", who, what or "list toys")
     if what ~= nil then
         mq.cmdf("/multiline ; /target %s; /tell %s Summoning %s", who, who, what)
         mq.delay(500)
@@ -232,6 +231,136 @@ local function EventHandler(line, who, what)
     end
 end
 
+local function ListItems(line, who)
+    if not who then return end
+
+    local category = {}
+    local catName = ''
+    local args = {}
+    local subLine = ''
+    if line:find("weapons") then
+        catName = 'weapons'
+        category = petWeps
+        subLine = line:sub(line:find("weapons") + 9)
+    elseif line:find("belt") then
+        catName = 'belt'
+        category = beltSpells
+        subLine = line:sub(line:find("belt") + 5)
+    elseif line:find("mask") then
+        catName = 'mask'
+        category = maskSpells
+        subLine = line:sub(line:find("mask") + 5)
+    elseif line:find("armor") then
+        catName = 'armor'
+        category = armorSpells
+        subLine = line:sub(line:find("armor") + 6)
+    elseif line:find("jewelry") then
+        catName = 'jewelry'
+        category = jewelrySpells
+        subLine = line:sub(line:find("jewelry") + 8)
+    end
+    if not category or #category == 0 then
+        MGear('\arError\ax: No items found in this category')
+        return
+    end
+    args = Utils.String.Split(subLine, ",")
+    local itemList = {}
+    for _, item in ipairs(args) do
+        local itemName = item:match("%s*(.-)%s*$")
+        for index, spell in ipairs(category) do
+            if spell.spell:lower():find(itemName:lower()) then
+                table.insert(itemList, string.format("[%s]=%s", index, spell.spell))
+            end
+        end
+    end
+
+    if #itemList == 0 then
+        MGear('\arError\ax: No items found matching your search')
+        return
+    end
+
+    local itemListStr = table.concat(itemList, ", ")
+    local itemCount = #itemList
+    local itemListMsg = string.format("/tell %s %s %s", who, catName, itemListStr)
+    mq.cmdf(itemListMsg)
+end
+
+local function properCase(str)
+    return str:gsub("^%l", string.upper)
+end
+
+local function setCategories(cat)
+    if cat == 'all' then
+        settings.doWeapons = true
+        settings.doBelt = true
+        settings.doMask = true
+        settings.doArmor = true
+        settings.doJewelry = true
+    elseif cat == 'none' then
+        settings.doWeapons = false
+        settings.doBelt = false
+        settings.doMask = false
+        settings.doArmor = false
+        settings.doJewelry = false
+    else
+        settings.doWeapons = false
+        settings.doBelt = false
+        settings.doMask = false
+        settings.doArmor = false
+        settings.doJewelry = false
+        settings['do' .. properCase(cat)] = true
+    end
+end
+
+local function ItemHandler(line, who, cat)
+    if who == nil then return end
+    local what = line:sub(line:find(cat) + #cat + 1)
+    mq.cmdf("/multiline ; /target %s; /tell %s Summoning %s", who, who, cat)
+    mq.delay(500)
+    local targetPet = mq.TLO.Target.Pet.ID() or 0
+    if targetPet == 0 then
+        MGear('\arError\ax: Target has No pet summoned')
+        return
+    end
+    local indexes = {}
+    indexes = Utils.String.Split(what, ",")
+
+    for k, v in pairs(indexes) do
+        if v:find("'") then
+            indexes[k] = v:gsub("'", "")
+        end
+    end
+    if cat == 'weapons' then
+        settings.petPriWep = tonumber(indexes[1]) or lastPriWep
+        settings.petSecWep = tonumber(indexes[2]) or lastSecWep
+        settings.doWeapons = true
+        setCategories(cat)
+    elseif cat == 'belt' then
+        settings.selectedBelt = tonumber(indexes[1]) or lastBelt
+        settings.doBelt = true
+        setCategories(cat)
+    elseif cat == 'mask' then
+        settings.selectedMask = tonumber(indexes[1]) or lastMask
+        settings.doMask = true
+        setCategories(cat)
+    elseif cat == 'armor' then
+        settings.selectedArmor = tonumber(indexes[1]) or lastArmor
+        settings.doArmor = true
+        setCategories(cat)
+    elseif cat == 'jewelry' then
+        settings.selectedJewelry = tonumber(indexes[1]) or lastJewelry
+        settings.doJewelry = true
+        setCategories(cat)
+    end
+
+    if mq.TLO.Target.ID() > 0 then
+        GearTarget = 'Target'
+        doRun = true
+    else
+        MGear('\arError\ax: No target')
+    end
+end
+
 local function hailed(line, who)
     if not who then return end
     local reply = string.format("/tell %s Send me a tell for toys /tell %s toys 'type' : or /tell %s list toys", who, MyName, MyName)
@@ -245,6 +374,18 @@ local function BuildEvents()
     mq.event("list_toys", "#1# tells you, 'list toys'#*#", EventHandler)
     local hailMsg = string.format("#1# says, 'Hail, %s'", MyName)
     mq.event("mage_hailed", hailMsg, hailed)
+    mq.event("list_items2", "#1# tells you, 'list weapons'#*#", ListItems)
+    mq.event("list_items3", "#1# tells you, 'list belt'#*#", ListItems)
+    mq.event("list_items4", "#1# tells you, 'list mask'#*#", ListItems)
+    mq.event("list_items5", "#1# tells you, 'list armor'#*#", ListItems)
+    mq.event("list_items6", "#1# tells you, 'list jewelry'#*#", ListItems)
+    mq.event('mage_weapons', "#1# tells you, 'weapons #*#'#*#", function(line, who, what) ItemHandler(line, who, "weapons") end)
+    mq.event('mage_armor', "#1# tells you, 'armor #*#'#*#", function(line, who, what) ItemHandler(line, who, "armor") end)
+    mq.event('mage_mask', "#1# tells you, 'mask #*#'#*#", function(line, who, what) ItemHandler(line, who, "mask") end)
+    mq.event('mage_jewelry', "#1# tells you, 'jewelry #*#'#*#", function(line, who, what) ItemHandler(line, who, "jewelry") end)
+    mq.event('mage_jewlery', "#1# tells you, 'jewlery #*#'#*#", function(line, who, what) ItemHandler(line, who, "jewelry") end)
+
+    mq.event('mage_belt', "#1# tells you, 'belt #2#'#*#", function(line, who, what) ItemHandler(line, who, "belt") end)
 end
 
 getSpells()
@@ -917,3 +1058,9 @@ saveSettings()
 mq.unevent('mage_toys')
 mq.unevent('list_toys')
 mq.unevent("mage_hailed")
+mq.unevent("list_items2")
+mq.unevent("list_items3")
+mq.unevent("list_items4")
+mq.unevent("list_items5")
+mq.unevent("list_items6")
+mq.cmd('/echo \aw[\agMageGear\aw] \arProgram terminated')
