@@ -446,7 +446,7 @@ local function ItemHandler(line, who, cat)
     end
 
     if mq.TLO.Target.ID() > 0 then
-        GearTarget = 'Target'
+        GearTarget = settings.doFocus or settings.doPlayer and 'Player' or 'Target'
         doRun = true
     else
         MGear('\arError\ax: No target')
