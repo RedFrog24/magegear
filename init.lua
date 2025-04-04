@@ -352,7 +352,7 @@ local function ItemHandler(line, who, cat)
     end
     if cat == 'weapons' then
         settings.petPriWep = tonumber(indexes[1]) or lastPriWep
-        settings.petSecWep = tonumber(indexes[2]) or lastSecWep
+        settings.petSecWep = tonumber(indexes[2]) or 0
         settings.doWeapons = true
         setCategories(cat)
     elseif cat == 'belt' then
@@ -957,29 +957,29 @@ local function giveItemToPet(targetPet)
 
     local success = true
 
-    if settings.doWeapons and success then
+    if settings.doWeapons and success and settings.petPriWep > 0 then
         success = summonItem(petWeps[settings.petPriWep])
         if success then handCursorToPet() end
-        if success then success = summonItem(petWeps[settings.petSecWep]) end
+        if success and settings.petSecWep > 0 then success = summonItem(petWeps[settings.petSecWep]) end
         if success then handCursorToPet() end
     end
 
-    if settings.doBelt and success then
+    if settings.doBelt and success and settings.selectedBelt > 0 then
         success = summonItem(beltSpells[settings.selectedBelt])
         if success then handCursorToPet() end
     end
 
-    if settings.doMask and success then
+    if settings.doMask and success and settings.selectedBelt > 0 then
         success = summonItem(maskSpells[settings.selectedMask])
         if success then handCursorToPet() end
     end
 
-    if settings.doArmor and success then
+    if settings.doArmor and success and settings.selectedArmor > 0 then
         success = summonItem(armorSpells[settings.selectedArmor])
         if success then handCursorToPet() end
     end
 
-    if settings.doJewelry and success then
+    if settings.doJewelry and success and settings.selectedJewelry > 0 then
         success = summonItem(jewelrySpells[settings.selectedJewelry])
         if success then handCursorToPet() end
     end
