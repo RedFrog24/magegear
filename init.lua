@@ -294,6 +294,9 @@ local function ListItems(line, who)
     local itemCount = #itemList
     local itemListMsg = string.format("/tell %s %s %s", who, catName, itemListStr)
     mq.cmdf(itemListMsg)
+    mq.delay(1000)
+    local reply = string.format("/tell %s Send me a tell %s [#][#,#] where # is the item number from the list.", who, catName)
+    mq.cmdf(reply)
 end
 
 -- Capatalize the first letter of the string
@@ -381,7 +384,10 @@ end
 -- reply to hail with a message
 local function hailed(line, who)
     if not who then return end
-    local reply = string.format("/tell %s Send me a tell for toys /tell %s toys 'type' : or /tell %s list toys", who, MyName, MyName)
+    local reply = string.format("/tell %s Send me a tell for toys /tell %s toys 'type' : or /tell %s list toys for a list of categories", who, MyName, MyName)
+    mq.cmdf(reply)
+    mq.delay(1000)
+    reply = string.format("/tell %s Send me a tell for items /tell %s list weapons, belt, mask, armor, or jewelry", who, MyName)
     mq.cmdf(reply)
 end
 
