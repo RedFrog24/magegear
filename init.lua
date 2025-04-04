@@ -66,6 +66,8 @@ local jewelrySpells = {
     -- { spell = "Summon Pouch of Jerikor", bag = "Phantom Satchel", items = { "Calliav's Platinum Choker", "Calliav's Runed Mantle", "Calliav's Jeweled Bracelet", "Calliav's Spiked Ring", "Calliav's Glowing Bauble", "Calliav's Steel Bracelet", }, level = 68, desc = "Summons a bag of fine jewelry", },
 }
 
+-- Populate spell tables based on Category and subcategory, with some exceptions for specific name filters
+-- Populates spell name, level, description, and item name if applicable
 local function getSpells()
     petSpells = {}
     beltSpells = {}
@@ -147,6 +149,7 @@ local function setBestDefault(table)
     return bestIdx
 end
 
+-- load in settings from the saved file or create a new one with defaults
 local function loadSettings()
     if Utils.File.Exists(settingsFile) then
         settings = dofile(settingsFile)
@@ -161,11 +164,16 @@ local function loadSettings()
     end
 end
 
+-- write settings to the saved file
 local function saveSettings()
     mq.pickle(settingsFile, settings)
 end
 
 
+---comment
+---@param line any the line of text that triggered the event
+---@param who any the name of the person who sent the tell
+---@param what any the category of items requested
 local function EventHandler(line, who, what)
     if who == nil then return end
     if what ~= nil then
@@ -231,6 +239,9 @@ local function EventHandler(line, who, what)
     end
 end
 
+---Replies to the requester with the list of items in the specified category
+---@param line any the line of text that triggered the event category names are pulled from the tell
+---@param who any   the name of the person who sent the tell
 local function ListItems(line, who)
     if not who then return end
 
@@ -285,10 +296,12 @@ local function ListItems(line, who)
     mq.cmdf(itemListMsg)
 end
 
+-- Capatalize the first letter of the string
 local function properCase(str)
     return str:gsub("^%l", string.upper)
 end
 
+-- Set the category flags  based on the input string
 local function setCategories(cat)
     if cat == 'all' then
         settings.doWeapons = true
@@ -312,6 +325,10 @@ local function setCategories(cat)
     end
 end
 
+--- Sets the items drop downs to the requested item indicies and summons those items
+---@param line any
+---@param who any
+---@param cat any
 local function ItemHandler(line, who, cat)
     if who == nil then return end
     local what = line:sub(line:find(cat) + #cat + 1)
@@ -361,13 +378,14 @@ local function ItemHandler(line, who, cat)
     end
 end
 
+-- reply to hail with a message
 local function hailed(line, who)
     if not who then return end
     local reply = string.format("/tell %s Send me a tell for toys /tell %s toys 'type' : or /tell %s list toys", who, MyName, MyName)
     mq.cmdf(reply)
 end
 
-
+-- create the events we are listening for
 local function BuildEvents()
     --Grimshad tells you, 'toys'
     mq.event('mage_toys', "#1# tells you, 'toys #2#'#*#", EventHandler)
