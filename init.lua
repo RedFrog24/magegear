@@ -693,7 +693,7 @@ local function mageGear(open)
     ImGui.SameLine()
     settings.keepBags = drawToggle("Keep Bags", settings.keepBags)
 
-    imgui.Separator()
+    imgui.SeparatorText('Pet Items')
 
     if settings.doWeapons and #petWeps > 0 then
         local newPetPriWep = drawCombo("Primary", settings.petPriWep, petWeps, false)
@@ -740,22 +740,25 @@ local function mageGear(open)
         end
     end
 
-    if settings.doFocus and #focusSpells > 0 then
-        local newSelectedFocus = drawCombo("Focus", settings.selectedFocus, focusSpells, false)
-        if newSelectedFocus ~= settings.selectedFocus then
-            settings.selectedFocus = newSelectedFocus
-            MGear('\aySelected Focus: ' .. focusSpells[settings.selectedFocus].spell .. ' (Index ' .. settings.selectedFocus .. ')')
+    if settings.doFocus or settings.doPlayer then
+        ImGui.SeparatorText("Player Items")
+
+        if settings.doFocus and #focusSpells > 0 then
+            local newSelectedFocus = drawCombo("Focus", settings.selectedFocus, focusSpells, false)
+            if newSelectedFocus ~= settings.selectedFocus then
+                settings.selectedFocus = newSelectedFocus
+                MGear('\aySelected Focus: ' .. focusSpells[settings.selectedFocus].spell .. ' (Index ' .. settings.selectedFocus .. ')')
+            end
+        end
+
+        if settings.doPlayer and #playerItems > 0 then
+            local newSelectedPlayerItem = drawCombo("Player Item", settings.selectedPlayerItem, playerItems, false)
+            if newSelectedPlayerItem ~= settings.selectedPlayerItem then
+                settings.selectedPlayerItem = newSelectedPlayerItem
+                MGear('\aySelected Player Item: ' .. playerItems[settings.selectedPlayerItem].spell .. ' (Index ' .. settings.selectedPlayerItem .. ')')
+            end
         end
     end
-
-    if settings.doPlayer and #playerItems > 0 then
-        local newSelectedPlayerItem = drawCombo("Player Item", settings.selectedPlayerItem, playerItems, false)
-        if newSelectedPlayerItem ~= settings.selectedPlayerItem then
-            settings.selectedPlayerItem = newSelectedPlayerItem
-            MGear('\aySelected Player Item: ' .. playerItems[settings.selectedPlayerItem].spell .. ' (Index ' .. settings.selectedPlayerItem .. ')')
-        end
-    end
-
     -- Self Button
     imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))     -- Green base
     imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor()) -- Theme-based hover
