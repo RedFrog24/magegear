@@ -1,4 +1,4 @@
---[[ Mage Gear by RedFrog v2.3.5 (DoN EMU Adjusted) Started: March 29, 2025
+--[[ Mage Gear by RedFrog v2.3.8 (DoN EMU Adjusted) Started: March 29, 2025
     Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
     Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
     Fixed: Distance check before casting, pet validation, casting/cursor issues, loop control, added nav delay, fixed hover colors
@@ -613,7 +613,7 @@ local function mageGear(open)
 
     local ColorCount, StyleCount = Themes.StartTheme(settings.currentTheme, ThemeData)
     local show = false
-    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.5", open)
+    open, show = imgui.Begin("Mage Gear (DoN EMU) v2.3.8", open)
 
     if not open then
         openGUI = false
