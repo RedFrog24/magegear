@@ -1,0 +1,77 @@
+
+- Added food and water spells to the PlayerSpells list. 
+
+2.3.17
+
+- Major new SpellBook Spell Loading Improvement.
+- RGMercs Fix:
+- runs /rgl pauseall and unpauseRGMercs: Only runs /rgl unpauseall , avoiding unnecessary unpause attempts.
+
+- Removed Debug Spam:
+- In getSpells, removed MGear calls for Added weapon from Summon Weapon and Added weapon from Misc.
+ 
+- Removed Hover Output:
+- In mageGear, removed MGear calls for Self button hovered color applied, Target button hovered color applied, and Group button hovered color applied.
+ 
+- Exclude Wizard Familiars:
+- Added familiarSpells table with common wizard familiar spell names.
+ 
+- New isWizardFamiliar function checks if a pet’s spell or name matches the blacklist.
+ 
+- In the Group loop, skips pets identified as familiars with a specific log message.- 
+- Integrated into doSummonPet and doRun loops to pause before operations and unpause after.
+ 
+- Fix Spellbook Stuck:
+ 
+- Improved Group Summoning
+
+2.3.6 - Apr 3, 2025
+
+- Removed distance spam from moveToPet function by removing the repeated distance logging during navigation
+
+v2.3.4 - Apr 3, 2025
+
+- Navigation Delay:
+- In moveToPet, added mq.delay(1000) after reaching the pet (distance ≤ 20) and before returning true. This gives the game a moment to stabilize post-navigation.
+
+- Hover Colors:
+- The "Self", "Target", and "Group" buttons already had imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor()) applied in v2.3.3, and it’s retained here. Confirmed it matches the "Summon" button styling.
+
+- Header Update:
+- Updated the version to v2.3.4 and noted the nav delay and hover color restoration in the comments.
+
+v2.3.3 - Apr 3, 2025
+
+- Navigation Delay:
+- In moveToPet, added mq.delay(1000) after reaching the pet (distance ≤ 20) and before returning true. This gives the game a moment to stabilize post-navigation.
+- Hover Colors:
+- The "Self", "Target", and "Group" buttons already had imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor()) applied in v2.3.3, and it’s retained here. Confirmed it matches the "Summon" button styling.
+- Header Update:
+- Updated the version to v2.3.4 and noted the nav delay and hover color restoration in the comments.
+
+2.3.2 - Apr 3, 2025
+
+- Bag Handling:
+- Removed extractBagItems.
+- giveItemToPet summons bags (armor, jewelry) and hands them over directly with handCursorToPet.
+- Order: Weapons > Belt > Mask > Armor > Jewelry.
+- Secondary Weapon Fix:
+- Removed mq.TLO.FindItem checks in giveItemToPet.
+- Always summons both primary and secondary weapons, even if identical.
+- UI Enhancements:
+- Kept your animated “Summon” button.
+- Added getHoverColor for Self/Target/Group buttons.
+- Retained your memorizeSpell and moveToPet logic.
+- Debugging:
+- Added success messages in summonItem for clarity.
+
+2.3.1 - Apr 1, 2025
+- fixed issue where two identical weapons selected made only one weapon summon - ty AMS !
+- less spam
+- Removed distance spam
+- twin weapon fix
+
+2.3 - Apr 1, 2025
+- HuntBuddy link removed (ty AMS!)
+- New Themes: Water Mage
+- GUI tooltips

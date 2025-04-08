@@ -104,7 +104,7 @@ local function getSpells()
 
             if spellCat == 'Pet' then
                 if spellSubCat:find('Sum:') or lowerName:find('monster summoning') or lowerName:find('zomm') then
-                    table.insert(petSpells, { spell = spellName, level = spellLvl, desc = spellDesc })
+                    table.insert(petSpells, { spell = spellName, level = spellLvl, desc = spellDesc, })
                 end
                 goto next_spell
             end
@@ -112,26 +112,28 @@ local function getSpells()
             if spellCat == "Create Item" then
                 if spellSubCat == "Misc" then
                     if lowerName:find('belt') or lowerName:find('girdle') then
-                        table.insert(beltSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc })
+                        table.insert(beltSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                     elseif lowerName:find('mask') or lowerName:find('muzzle') then
-                        table.insert(maskSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc })
-                    elseif lowerName:find('blade') or lowerName:find('staff') or lowerName:find('dagger') or 
-                           lowerName:find('spear') or lowerName:find('fist') or lowerName:find('sword') or 
-                           lowerName:find('walnan') or lowerName:find('ixiblat') then
-                        table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc })
+                        table.insert(maskSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    elseif lowerName:find('blade') or lowerName:find('staff') or lowerName:find('dagger') or
+                        lowerName:find('spear') or lowerName:find('fist') or lowerName:find('sword') or
+                        lowerName:find('walnan') or lowerName:find('ixiblat') then
+                        table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                     end
                 elseif spellSubCat == "Summon Armor" then
-                    table.insert(armorSpells, { spell = spellName, bag = "Phantom Satchel", items = {}, level = spellLvl, desc = spellDesc })
+                    table.insert(armorSpells, { spell = spellName, bag = "Phantom Satchel", items = {}, level = spellLvl, desc = spellDesc, })
                 elseif spellSubCat == "Summon Weapon" then
                     if lowerName:find('quiver') or lowerName:find('pouch') or lowerName:find('bandoleer') or lowerName:find('arrow') then
-                        table.insert(playerItems, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc })
+                        table.insert(playerItems, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                     else
-                        table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc })
+                        table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                     end
+                elseif spellSubCat == "Summon Food/Water" then
+                    table.insert(playerItems, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                 elseif spellSubCat == "Summon Focus" then
-                    table.insert(focusSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc })
+                    table.insert(focusSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                 elseif lowerName:find("jewelry bag") or lowerName:find("pouch of jerikor") then
-                    table.insert(jewelrySpells, { spell = spellName, item = spellName, bag = "Phantom Satchel", level = spellLvl, desc = spellDesc })
+                    table.insert(jewelrySpells, { spell = spellName, item = spellName, bag = "Phantom Satchel", level = spellLvl, desc = spellDesc, })
                 end
             end
         end
@@ -500,6 +502,12 @@ end
 BuildEvents()
 openGUI = init()
 
+--- Draws a combo box for selecting a spell.
+--- @param label string: Unique label for the combo box (used for ID).
+--- @param current integer: The current selection index, or 0 if none is selected.
+--- @param items table: A list of spell tables with `spell`, `level`, and `desc` fields.
+--- @param isPet boolean: Whether this combo is pet-specific (not used here, reserved for future).
+--- @return integer: The updated selected index.
 local function drawCombo(label, current, items, isPet)
     local comboValue = current
     imgui.PushID(label)
@@ -551,6 +559,8 @@ local function drawCombo(label, current, items, isPet)
     imgui.PopID()
     return comboValue
 end
+
+
 
 local function drawToggle(label, value)
     imgui.Text(label .. ":")
@@ -922,7 +932,7 @@ local function summonPet(pet)
         mq.delay(500)
     end
 
-    if not mq.TLO.Me.Casting() then
+    if not mq.TLO.Cursor() then
         MGear('\arError\ax: Casting ' .. pet.spell .. ' failed after ' .. castAttempts .. ' attempts')
         return false
     end
@@ -975,6 +985,7 @@ local function summonItem(spellData)
             castAttempts = castAttempts + 1
             MGear('\ayRetrying cast attempt ' .. castAttempts .. ' for ' .. spellData.spell)
             mq.cmdf('/cast "%s"', spellData.spell)
+            castAttempts = castAttempts + 1
         end
         mq.delay(2000, function() return mq.TLO.Me.Casting() end)
     end
@@ -1116,7 +1127,7 @@ local function giveItemToPet(targetPet, isPet)
         if settings.doWeapons and settings.petPriWep > 0 then
             success = summonItem(petWeps[settings.petPriWep]) and success
             if success then handCursorToPet() end
-            if success and settings.petSecWep > 0 then 
+            if success and settings.petSecWep > 0 then
                 success = summonItem(petWeps[settings.petSecWep]) and success
                 if success then handCursorToPet() end
             end
