@@ -901,7 +901,7 @@ local function summonItem(spellData)
     end
 
     mq.cmdf('/cast "%s"', spellData.spell)
-    mq.delay(4000)
+    mq.delay(4000, function() return mq.TLO.Me.Casting() end)
     local castTime = mq.TLO.Spell(spellData.spell) ~= nil and mq.TLO.Spell(spellData.spell).CastTime.TotalSeconds() or 0
     local castAttempts = 0
     while not mq.TLO.Me.Casting() and castAttempts < 4 do
@@ -1093,7 +1093,7 @@ local wasRGMercsRunning = false
 local function pauseRGMercs()
     if not mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then return end
     MGear('\ayPausing RGMercs...')
-    mq.cmd('/rgl pauseall')
+    mq.cmd('/rgl pause')
     mq.delay(1000) -- Wait for pause to take effect
     wasRGMercsRunning = true
     MGear('\ayRGMercs paused')
@@ -1102,7 +1102,7 @@ end
 local function unpauseRGMercs()
     if wasRGMercsRunning then
         MGear('\ayUnpausing RGMercs...')
-        mq.cmd('/rgl unpauseall')
+        mq.cmd('/rgl unpause')
         mq.delay(1000) -- Wait for unpause to take effect
         wasRGMercsRunning = false
         MGear('\ayRGMercs unpaused')
@@ -1133,35 +1133,38 @@ while openGUI do
         unpauseRGMercs()
     end
 
+    -- if doRun then
+    --     local itemsToSummon = {}
+    --     if settings.doWeapons and #petWeps > 0 then
+    --         if settings.petPriWep > 0 then
+    --             itemsToSummon.Primary = petWeps[settings.petPriWep].spell
+    --         end
+    --         if settings.petSecWep > 0 then
+    --             itemsToSummon.Secondary= petWeps[settings.petSecWep].spell
+    --         end
+    --     end
+    --     if settings.doBelt and #beltSpells > 0 and settings.selectedBelt > 0 then
+    --         itemsToSummon.Belt = beltSpells[settings.selectedBelt].spell
+    --     end
+    --     if settings.doMask and #maskSpells > 0 and settings.selectedMask > 0 then
+    --         itemsToSummon.Mask =  maskSpells[settings.selectedMask].spell
+    --     end
+    --     if settings.doArmor and #armorSpells > 0 and settings.selectedArmor > 0 then
+    --         itemsToSummon.Armor =  armorSpells[settings.selectedArmor].spell
+    --     end
+    --     if settings.doJewelry and #jewelrySpells > 0 and settings.selectedJewelry > 0 then
+    --         itemsToSummon.Jewlery =  jewelrySpells[settings.selectedJewelry].spell
+    --     end
+    --     if settings.doFocus and #focusSpells > 0 and settings.selectedFocus > 0 then
+    --         itemsToSummon.Focus =  focusSpells[settings.selectedFocus].spell
+    --     end
+    --     if settings.doPlayer and #playerItems > 0 and settings.selectedPlayerItem > 0 then
+    --         itemsToSummon.Player = playerItems[settings.selectedPlayerItem].spell
+    --     end
+    -- end
+
     while doRun do
         if mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then pauseRGMercs() end
-        local itemsToSummon = {}
-        if settings.doWeapons and #petWeps > 0 then
-            if settings.petPriWep > 0 then
-                itemsToSummon[#itemsToSummon + 1] = 'Primary=' .. petWeps[settings.petPriWep].spell
-            end
-            if settings.petSecWep > 0 then
-                itemsToSummon[#itemsToSummon + 1] = 'Secondary=' .. petWeps[settings.petSecWep].spell
-            end
-        end
-        if settings.doBelt and #beltSpells > 0 and settings.selectedBelt > 0 then
-            itemsToSummon[#itemsToSummon + 1] = 'Belt=' .. beltSpells[settings.selectedBelt].spell
-        end
-        if settings.doMask and #maskSpells > 0 and settings.selectedMask > 0 then
-            itemsToSummon[#itemsToSummon + 1] = 'Mask=' .. maskSpells[settings.selectedMask].spell
-        end
-        if settings.doArmor and #armorSpells > 0 and settings.selectedArmor > 0 then
-            itemsToSummon[#itemsToSummon + 1] = 'Armor=' .. armorSpells[settings.selectedArmor].spell
-        end
-        if settings.doJewelry and #jewelrySpells > 0 and settings.selectedJewelry > 0 then
-            itemsToSummon[#itemsToSummon + 1] = 'Jewelry=' .. jewelrySpells[settings.selectedJewelry].spell
-        end
-        if settings.doFocus and #focusSpells > 0 and settings.selectedFocus > 0 then
-            itemsToSummon[#itemsToSummon + 1] = 'Focus=' .. focusSpells[settings.selectedFocus].spell
-        end
-        if settings.doPlayer and #playerItems > 0 and settings.selectedPlayerItem > 0 then
-            itemsToSummon[#itemsToSummon + 1] = 'Player=' .. playerItems[settings.selectedPlayerItem].spell
-        end
 
         local success = false
         local playerTrades = (settings.doFocus or settings.doPlayer)
@@ -1177,19 +1180,17 @@ while openGUI do
             end
         end
 
-        -- if GearTarget == 'Self' then
-        -- if not mq.TLO.Me.Pet.ID() then
-        --     MGear('\arError\ax: You do not have a pet')
-        -- else
-        --     tradePetName = mq.TLO.Me.Pet.CleanName()
-        --     success = giveItemToPet(tradePetName, true)
-        --     if success then
-        --         MGear('\agSummoning complete')
-        --     end
-        -- end
-        -- else
-        printf('GearTarget: %s', GearTarget)
-        if GearTarget == 'Target' then
+        if GearTarget == 'Self' then
+            if not mq.TLO.Me.Pet.ID() then
+                MGear('\arError\ax: You do not have a pet')
+            else
+                tradePetName = mq.TLO.Me.Pet.CleanName()
+                success = giveItemToPet(tradePetName, true)
+                if success then
+                    MGear('\agSummoning complete')
+                end
+            end
+        elseif GearTarget == 'Target' then
             if not (mq.TLO.Target() and mq.TLO.Target.Type() == 'PC') then
                 MGear('\arError\ax: Invalid target')
             else
@@ -1247,7 +1248,7 @@ while openGUI do
         else
             doRun = false
         end
-        unpauseRGMercs()
+        if not doRun then unpauseRGMercs() end
     end
 end
 saveSettings()
