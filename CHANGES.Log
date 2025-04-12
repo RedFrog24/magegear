@@ -1,3 +1,7 @@
+- cleaned up some unused tables.
+- added checks for summon item should fix duplicating summons for mask and belt
+
+2.3.18 - Apr 9, 2025
 
 - Added food and water spells to the PlayerSpells list. 
 
