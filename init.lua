@@ -1019,64 +1019,99 @@ end
 
 local needMove = false
 
-local function giveItemToPet(targetPet, isPet)
-    if not targetPet then
-        MGear('\arError\ax: Invalid pet name')
+function MemAllSpells()
+    if settings.doFocus and settings.selectedFocus > 0 then
+        mq.cmdf('/memspell 1 "%s"', focusSpells[settings.selectedFocus].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(1).Name() == focusSpells[settings.selectedFocus].spell end)
+    end
+    if settings.doPlayer and settings.selectedPlayerItem > 0 then
+        mq.cmdf('/memspell 2 "%s"', playerItems[settings.selectedPlayerItem].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(2).Name() == playerItems[settings.selectedPlayerItem].spell end)
+    end
+    if settings.doWeapons and settings.petPriWep > 0 then
+        mq.cmdf('/memspell 3 "%s"', petWeps[settings.petPriWep].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(3).Name() == petWeps[settings.petPriWep].spell end)
+        if settings.petSecWep > 0 then
+            mq.cmdf('/memspell 4 "%s"', petWeps[settings.petSecWep].spell)
+            mq.delay(5000, function() return mq.TLO.Me.Gem(4).Name() == petWeps[settings.petSecWep].spell end)
+        end
+    end
+    if settings.doBelt and settings.selectedBelt > 0 then
+        mq.cmdf('/memspell 5 "%s"', beltSpells[settings.selectedBelt].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(5).Name() == beltSpells[settings.selectedBelt].spell end)
+    end
+    if settings.doMask and settings.selectedMask > 0 then
+        mq.cmdf('/memspell 6 "%s"', maskSpells[settings.selectedMask].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(6).Name() == maskSpells[settings.selectedMask].spell end)
+    end
+    if settings.doArmor and settings.selectedArmor > 0 then
+        mq.cmdf('/memspell 7 "%s"', armorSpells[settings.selectedArmor].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(7).Name() == armorSpells[settings.selectedArmor].spell end)
+    end
+    if settings.doJewelry and settings.selectedJewelry > 0 then
+        mq.cmdf('/memspell 8 "%s"', jewelrySpells[settings.selectedJewelry].spell)
+        mq.delay(5000, function() return mq.TLO.Me.Gem(8).Name() == jewelrySpells[settings.selectedJewelry].spell end)
+    end
+end
+
+local function giveItemToTarget(targetName, isPet)
+    if not targetName then
+        MGear('\arError\ax: Invalid Target name')
         return false
     end
 
-    if not moveToPet(targetPet) then
+    if not moveToPet(targetName) then
         needMove = true
         return false
     end
 
-    local success = true
+    MemAllSpells()
+
+    local success = false
     if not isPet then
         if settings.doFocus and settings.selectedFocus > 0 then
-            success = summonItem(focusSpells[settings.selectedFocus]) and success
-            if success then
-                handCursorToPlayer()
-                needMove = false
-            end
+            success = summonItem(focusSpells[settings.selectedFocus]) or success
         end
 
         if settings.doPlayer and settings.selectedPlayerItem > 0 then
-            success = summonItem(playerItems[settings.selectedPlayerItem]) and success
-            if success then
-                handCursorToPlayer()
-                needMove = false
-            end
+            success = summonItem(playerItems[settings.selectedPlayerItem]) or success
+        end
+
+        if success then
+            handCursorToPlayer()
+            needMove = false
         end
     else
         if settings.doWeapons and settings.petPriWep > 0 then
-            success = summonItem(petWeps[settings.petPriWep]) and success
-            if success then handCursorToPet() end
+            success = summonItem(petWeps[settings.petPriWep]) or success
             if success and settings.petSecWep > 0 then
-                success = summonItem(petWeps[settings.petSecWep]) and success
-                if success then handCursorToPet() end
+                success = summonItem(petWeps[settings.petSecWep]) or success
             end
+            -- if success then handCursorToPet() end
         end
 
         if settings.doBelt and settings.selectedBelt > 0 then
-            success = summonItem(beltSpells[settings.selectedBelt]) and success
-            if success then handCursorToPet() end
+            success = summonItem(beltSpells[settings.selectedBelt]) or success
+            -- if success then handCursorToPet() end
         end
 
         if settings.doMask and settings.selectedMask > 0 then
-            success = summonItem(maskSpells[settings.selectedMask]) and success
-            if success then handCursorToPet() end
+            success = summonItem(maskSpells[settings.selectedMask]) or success
+            -- if success then handCursorToPet() end
         end
 
         if settings.doArmor and settings.selectedArmor > 0 then
-            success = summonItem(armorSpells[settings.selectedArmor]) and success
-            if success then handCursorToPet() end
+            success = summonItem(armorSpells[settings.selectedArmor]) or success
+            -- if success then handCursorToPet() end
         end
 
         if settings.doJewelry and settings.selectedJewelry > 0 then
-            success = summonItem(jewelrySpells[settings.selectedJewelry]) and success
-            if success then handCursorToPet() end
+            success = summonItem(jewelrySpells[settings.selectedJewelry]) or success
+            -- if success then handCursorToPet() end
         end
+        if success then handCursorToPet() end
     end
+
     needMove = false
     return success
 end
@@ -1173,7 +1208,7 @@ while openGUI do
             if not tradePlayer() then
                 MGear('\arError\ax: Invalid target')
             else
-                success = giveItemToPet(tradePlayer.CleanName(), false)
+                success = giveItemToTarget(tradePlayer.CleanName(), false)
                 if success then
                     MGear('\agSummoning Player Items complete')
                 end
@@ -1185,7 +1220,7 @@ while openGUI do
                 MGear('\arError\ax: You do not have a pet')
             else
                 tradePetName = mq.TLO.Me.Pet.CleanName()
-                success = giveItemToPet(tradePetName, true)
+                success = giveItemToTarget(tradePetName, true)
                 if success then
                     MGear('\agSummoning complete')
                 end
@@ -1198,7 +1233,7 @@ while openGUI do
                 if not tradePetName then
                     MGear('\arError\ax: Target has no pet')
                 else
-                    success = giveItemToPet(tradePetName, true)
+                    success = giveItemToTarget(tradePetName, true)
                     if success then
                         MGear('\agSummoning complete')
                     end
@@ -1220,7 +1255,7 @@ while openGUI do
                                 MGear('\aySkipping \ax' .. member.Name() .. ' - wizard familiar')
                             else
                                 tradePetName = pet.CleanName()
-                                local memberSuccess = giveItemToPet(tradePetName, true)
+                                local memberSuccess = giveItemToTarget(tradePetName, true)
                                 allSuccess = allSuccess and memberSuccess
                                 if not memberSuccess then
                                     table.insert(failedMembers, member.Name())
