@@ -1168,36 +1168,6 @@ while openGUI do
         unpauseRGMercs()
     end
 
-    -- if doRun then
-    --     local itemsToSummon = {}
-    --     if settings.doWeapons and #petWeps > 0 then
-    --         if settings.petPriWep > 0 then
-    --             itemsToSummon.Primary = petWeps[settings.petPriWep].spell
-    --         end
-    --         if settings.petSecWep > 0 then
-    --             itemsToSummon.Secondary= petWeps[settings.petSecWep].spell
-    --         end
-    --     end
-    --     if settings.doBelt and #beltSpells > 0 and settings.selectedBelt > 0 then
-    --         itemsToSummon.Belt = beltSpells[settings.selectedBelt].spell
-    --     end
-    --     if settings.doMask and #maskSpells > 0 and settings.selectedMask > 0 then
-    --         itemsToSummon.Mask =  maskSpells[settings.selectedMask].spell
-    --     end
-    --     if settings.doArmor and #armorSpells > 0 and settings.selectedArmor > 0 then
-    --         itemsToSummon.Armor =  armorSpells[settings.selectedArmor].spell
-    --     end
-    --     if settings.doJewelry and #jewelrySpells > 0 and settings.selectedJewelry > 0 then
-    --         itemsToSummon.Jewlery =  jewelrySpells[settings.selectedJewelry].spell
-    --     end
-    --     if settings.doFocus and #focusSpells > 0 and settings.selectedFocus > 0 then
-    --         itemsToSummon.Focus =  focusSpells[settings.selectedFocus].spell
-    --     end
-    --     if settings.doPlayer and #playerItems > 0 and settings.selectedPlayerItem > 0 then
-    --         itemsToSummon.Player = playerItems[settings.selectedPlayerItem].spell
-    --     end
-    -- end
-
     while doRun do
         if mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then pauseRGMercs() end
 
