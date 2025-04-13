@@ -12,7 +12,7 @@ local Themes = require('theme_loader')
 local ThemeData = require('themes')
 local Utils = require('mq.Utils')
 
-local imageFile = mq.CreateTexture(string.format("%s/magegear/mage.png", mq.luaDir))
+
 local doRun = false
 local doSummonPet = false
 local openGUI = true
@@ -411,6 +411,7 @@ local function init()
         MGear('\arError\ax: You are not a Magician! Program ending!')
         return false
     end
+
     getSpells()
     loadSettings()
     lastPriWep = settings.petPriWep
@@ -424,11 +425,12 @@ local function init()
     lastPlayerItem = settings.selectedPlayerItem
 
     MGear('\apGreetings Mage! What would you like to Summon?')
+    mq.imgui.init('Mage Gear', MageGearGUI)
+
     return true
 end
 
 BuildEvents()
-openGUI = init()
 
 --- Draws a combo box for selecting a spell.
 --- @param label string: Unique label for the combo box (used for ID).
@@ -519,7 +521,9 @@ local function getHoverColor()
     end
 end
 
-local function mageGearGUI()
+local imageFile = nil
+
+function MageGearGUI()
     local main_viewport = imgui.GetMainViewport()
     imgui.SetNextWindowPos(main_viewport.WorkPos.x + 600, main_viewport.WorkPos.y + 20, ImGuiCond.FirstUseEver)
     imgui.SetNextWindowSize(350, 400, ImGuiCond.FirstUseEver)
@@ -533,9 +537,17 @@ local function mageGearGUI()
     end
 
     if draw then
+        if imageFile == nil then
+            -- get last PID
+            local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
+            local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
+            local filePath = string.format("%s/%s/mage.png", mq.luaDir, scriptFolder)
+            printf("%s", scriptFolder)
+            imageFile = mq.CreateTexture(filePath) or nil
+        end
         local cursorX, cursorY = imgui.GetCursorPos()
         local sizeX, sizeY = imgui.GetContentRegionAvail()
-        if settings.showBackground then
+        if settings.showBackground and imageFile ~= nil then
             ImGui.Indent(5)
             ImGui.Image(imageFile:GetTextureID(), ImVec2(sizeX, sizeY), nil, nil, ImVec4(1, 1, 1, 0.25))
             ImGui.Unindent(5)
@@ -775,8 +787,6 @@ local function mageGearGUI()
     imgui.End()
     return open
 end
-
-ImGui.Register('Mage Gear', mageGearGUI)
 
 local function getLastGem()
     local totalGems = mq.TLO.Me.NumGems() or 8
@@ -1191,6 +1201,8 @@ local function isWizardFamiliar(pet)
     end
     return false
 end
+
+openGUI = init()
 
 while openGUI do
     mq.doevents()
