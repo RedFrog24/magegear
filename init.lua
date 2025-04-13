@@ -43,7 +43,7 @@ local defaults = {
     selectedFocus = 1,
     selectedPlayerItem = 1,
     doFocus = false,
-    doPC = false,
+    doPlayer = false,
     doWeapons = true,
     doBelt = false,
     doMask = false,
@@ -489,8 +489,6 @@ end
 
 
 local function drawToggle(label, value)
-    imgui.Text(label .. ":")
-    imgui.SameLine()
     imgui.PushID(label)
     if value then
         imgui.TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), Icons.FA_TOGGLE_ON)
@@ -519,7 +517,7 @@ local function getHoverColor()
     end
 end
 
-local function mageGear()
+local function mageGearGUI()
     local main_viewport = imgui.GetMainViewport()
     imgui.SetNextWindowPos(main_viewport.WorkPos.x + 600, main_viewport.WorkPos.y + 20, ImGuiCond.FirstUseEver)
     imgui.SetNextWindowSize(350, 400, ImGuiCond.FirstUseEver)
@@ -592,21 +590,50 @@ local function mageGear()
     imgui.Separator()
 
     imgui.Text("Summon Options:")
-    settings.doWeapons = drawToggle("Weapons", settings.doWeapons)
-    imgui.SameLine()
-    settings.doBelt = drawToggle("Belt", settings.doBelt)
+    if ImGui.BeginTable("##Settings", 4, ImGuiTableFlags.Borders) then
+        ImGui.TableNextRow()
 
-    settings.doMask = drawToggle("Mask", settings.doMask)
-    imgui.SameLine()
-    settings.doArmor = drawToggle("Armor", settings.doArmor)
+        imgui.TableNextColumn()
+        ImGui.Text("Weapons:")
+        imgui.TableNextColumn()
+        settings.doWeapons = drawToggle("Weapons", settings.doWeapons)
 
-    settings.doJewelry = drawToggle("Jewelry", settings.doJewelry)
-    imgui.SameLine()
-    settings.doFocus = drawToggle("Focus", settings.doFocus)
+        imgui.TableNextColumn()
+        ImGui.Text("Belt:")
+        imgui.TableNextColumn()
+        settings.doBelt = drawToggle("Belt", settings.doBelt)
 
-    settings.doPlayer = drawToggle("Player", settings.doPlayer)
-    ImGui.SameLine()
-    settings.keepBags = drawToggle("Keep Bags", settings.keepBags)
+        imgui.TableNextColumn()
+        ImGui.Text("Mask:")
+        imgui.TableNextColumn()
+        settings.doMask = drawToggle("Mask", settings.doMask)
+
+        imgui.TableNextColumn()
+        ImGui.Text("Armor:")
+        imgui.TableNextColumn()
+        settings.doArmor = drawToggle("Armor", settings.doArmor)
+
+        imgui.TableNextColumn()
+        ImGui.Text("Jewelry:")
+        imgui.TableNextColumn()
+        settings.doJewelry = drawToggle("Jewelry", settings.doJewelry)
+
+        -- skip empty slots to keep rows aligned
+        ImGui.TableNextColumn()
+        ImGui.TableNextColumn()
+
+        imgui.TableNextColumn()
+        ImGui.Text("Focus Items:")
+        imgui.TableNextColumn()
+        settings.doFocus = drawToggle("Focus", settings.doFocus)
+
+        imgui.TableNextColumn()
+        ImGui.Text("Player Items:")
+        imgui.TableNextColumn()
+        settings.doPlayer = drawToggle("Player Items", settings.doPlayer)
+        -- settings.keepBags = drawToggle("", settings.keepBags)
+        imgui.EndTable()
+    end
 
     imgui.SeparatorText('Pet Items')
 
@@ -690,17 +717,19 @@ local function mageGear()
             end
         end
     end
+    ImGui.PushStyleColor(ImGuiCol.Text, ImVec4(0, 0, 0, 1.000))
 
-    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.2, 1, 0.4, 0.75))
     imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button('Self') then
         GearTarget = 'Self'
         doRun = true
     end
     imgui.PopStyleColor(2)
+
     imgui.SameLine()
 
-    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.781, 0.422, 0.178, 1.000))
     imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button('Target') then
         if mq.TLO.Target.ID() > 0 then
@@ -713,7 +742,7 @@ local function mageGear()
     imgui.PopStyleColor(2)
     imgui.SameLine()
 
-    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 1))
+    imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.2, 0.7, 0.7, 1))
     imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
     if imgui.Button('Group') then
         if mq.TLO.Group() then
@@ -723,7 +752,7 @@ local function mageGear()
             MGear('\arError\ax: Not in a group')
         end
     end
-    imgui.PopStyleColor(2)
+    imgui.PopStyleColor(3)
 
     lastPriWep = settings.petPriWep
     lastSecWep = settings.petSecWep
@@ -740,7 +769,7 @@ local function mageGear()
     return open
 end
 
-ImGui.Register('Mage Gear', mageGear)
+ImGui.Register('Mage Gear', mageGearGUI)
 
 local function getLastGem()
     local totalGems = mq.TLO.Me.NumGems() or 8
@@ -1020,35 +1049,35 @@ end
 local needMove = false
 
 function MemAllSpells()
-    if settings.doFocus and settings.selectedFocus > 0 then
+    if settings.doFocus and settings.selectedFocus > 0 and not mq.TLO.Me.Gem(1).Name() == focusSpells[settings.selectedFocus].spell then
         mq.cmdf('/memspell 1 "%s"', focusSpells[settings.selectedFocus].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(1).Name() == focusSpells[settings.selectedFocus].spell end)
     end
-    if settings.doPlayer and settings.selectedPlayerItem > 0 then
+    if settings.doPlayer and settings.selectedPlayerItem > 0 and not mq.TLO.Me.Gem(2).Name() == playerItems[settings.selectedPlayerItem].spell then
         mq.cmdf('/memspell 2 "%s"', playerItems[settings.selectedPlayerItem].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(2).Name() == playerItems[settings.selectedPlayerItem].spell end)
     end
     if settings.doWeapons and settings.petPriWep > 0 then
         mq.cmdf('/memspell 3 "%s"', petWeps[settings.petPriWep].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(3).Name() == petWeps[settings.petPriWep].spell end)
-        if settings.petSecWep > 0 then
+        if settings.petSecWep > 0 and not mq.TLO.Me.Gem(petWeps[settings.petSecWep].spell)() then
             mq.cmdf('/memspell 4 "%s"', petWeps[settings.petSecWep].spell)
             mq.delay(5000, function() return mq.TLO.Me.Gem(4).Name() == petWeps[settings.petSecWep].spell end)
         end
     end
-    if settings.doBelt and settings.selectedBelt > 0 then
+    if settings.doBelt and settings.selectedBelt > 0 and not mq.TLO.Me.Gem(beltSpells[settings.selectedBelt].spell)() then
         mq.cmdf('/memspell 5 "%s"', beltSpells[settings.selectedBelt].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(5).Name() == beltSpells[settings.selectedBelt].spell end)
     end
-    if settings.doMask and settings.selectedMask > 0 then
+    if settings.doMask and settings.selectedMask > 0 and not mq.TLO.Me.Gem(maskSpells[settings.selectedMask].spell)() then
         mq.cmdf('/memspell 6 "%s"', maskSpells[settings.selectedMask].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(6).Name() == maskSpells[settings.selectedMask].spell end)
     end
-    if settings.doArmor and settings.selectedArmor > 0 then
+    if settings.doArmor and settings.selectedArmor > 0 and not mq.TLO.Me.Gem(armorSpells[settings.selectedArmor].spell)() then
         mq.cmdf('/memspell 7 "%s"', armorSpells[settings.selectedArmor].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(7).Name() == armorSpells[settings.selectedArmor].spell end)
     end
-    if settings.doJewelry and settings.selectedJewelry > 0 then
+    if settings.doJewelry and settings.selectedJewelry > 0 and not mq.TLO.Me.Gem(jewelrySpells[settings.selectedJewelry].spell)() then
         mq.cmdf('/memspell 8 "%s"', jewelrySpells[settings.selectedJewelry].spell)
         mq.delay(5000, function() return mq.TLO.Me.Gem(8).Name() == jewelrySpells[settings.selectedJewelry].spell end)
     end
