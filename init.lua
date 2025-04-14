@@ -1,4 +1,4 @@
---[[ Mage Gear by RedFrog v2.3.20 (DoN EMU Adjusted) Started: March 29, 2025
+--[[ Mage Gear by RedFrog v2.3.21 (DoN EMU Adjusted) Started: March 29, 2025
     Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
     Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
     Fixed: Distance check, pet validation, casting/cursor issues, loop control, nav delay, hover colors, "Select a spell" crash, RGMercs crash, typo in getHoverColor, syntax error in Jewelry block
