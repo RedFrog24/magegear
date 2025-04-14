@@ -556,13 +556,13 @@ function MageGearGUI()
         local sizeX, sizeY = imgui.GetContentRegionAvail()
         if settings.showBackground and imageFile ~= nil then
             ImGui.Indent(5)
-            ImGui.Image(imageFile:GetTextureID(), ImVec2(sizeX, sizeY), nil, nil, ImVec4(1, 1, 1, 0.5))
+            ImGui.Image(imageFile:GetTextureID(), ImVec2(sizeX, sizeY)) -- optional to adjust image alpha coloring (, nil, nil, ImVec4(1, 1, 1, 0.5))
             ImGui.Unindent(5)
             ImGui.SetCursorPos(cursorX, cursorY)
         end
         local frameBG = ImGui.GetStyleColorVec4(ImGuiCol.FrameBg)
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, ImVec4(frameBG.x, frameBG.y, frameBG.z, 0.3))
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImVec4(0, 0, 0, 0.6))
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, ImVec4(frameBG.x, frameBG.y, frameBG.z, 0.4)) -- background color for combo boxes at 40% alpha
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImVec4(0, 0, 0, 0.5))                         -- child background at half alpha to mute the background image
         if ImGui.BeginChild("##child", 0, 0, ImGuiChildFlags.Border) then
             imgui.Text("Theme:")
             imgui.SameLine()
