@@ -538,20 +538,6 @@ function MageGearGUI()
     end
 
     if draw then
-        if filePath == nil then
-            -- get last PID
-            local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
-            local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
-            filePath = string.format("%s/%s/", mq.luaDir, scriptFolder)
-            imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
-        end
-        if settings.currentTheme == "Water Mage" then
-            imageFile = mq.CreateTexture(filePath .. "water.png") or nil
-        elseif settings.currentTheme == "Fire Mage" then
-            imageFile = mq.CreateTexture(filePath .. "fire.png") or nil
-        else
-            imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
-        end
         local cursorX, cursorY = imgui.GetCursorPos()
         local sizeX, sizeY = imgui.GetContentRegionAvail()
         if settings.showBackground and imageFile ~= nil then
@@ -1218,10 +1204,30 @@ local function isWizardFamiliar(pet)
 end
 
 openGUI = init()
+local lastImage = ''
 
 while openGUI do
+    if filePath == nil then
+        -- get last PID
+        local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
+        local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
+        filePath = string.format("%s/%s/", mq.luaDir, scriptFolder)
+        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
+        lastImage = 'mage.png'
+    end
+    if settings.currentTheme == "Water Mage" and lastImage ~= 'water.png' then
+        imageFile = mq.CreateTexture(filePath .. "water.png") or nil
+        lastImage = 'water.png'
+    elseif settings.currentTheme == "Fire Mage" and lastImage ~= 'fire.png' then
+        imageFile = mq.CreateTexture(filePath .. "fire.png") or nil
+        lastImage = 'fire.png'
+    elseif settings.currentTheme ~= "Water Mage" and settings.currentTheme ~= "Fire Mage" and lastImage ~= 'mage.png' then
+        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
+        lastImage = 'mage.png'
+    end
     mq.doevents()
-    mq.delay(500)
+    mq.delay(10)
+
 
     while doSummonPet do
         if mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then pauseRGMercs() end
