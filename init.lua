@@ -31,6 +31,8 @@ local tradePetName = ''
 local MyName = mq.TLO.Me.CleanName()
 local settings = {}
 local settingsFile = string.format("%s/mage_gear_%s.lua", mq.configDir, MyName)
+local images = {}
+local needSave = false
 
 local defaults = {
     currentTheme = "Grape",
@@ -468,6 +470,7 @@ local function drawCombo(label, current, items, isPet)
                 if comboValue ~= i and os.clock() - lastChange > 0.5 then
                     comboValue = i
                     lastComboChange[label] = os.clock()
+                    needSave = true
                 end
             end
             if imgui.IsItemHovered() then
@@ -505,6 +508,7 @@ local function drawToggle(label, value)
         imgui.EndTooltip()
         if imgui.IsMouseClicked(0) then
             value = not value
+            needSave = true
         end
     end
     imgui.PopID()
@@ -532,7 +536,13 @@ function MageGearGUI()
     local ColorCount, StyleCount = Themes.StartTheme(settings.currentTheme, ThemeData)
     local show = false
     local open, draw = imgui.Begin("Mage Gear (DoN EMU) v2.3.21###MageGear", true)
-
+    if settings.currentTheme == "Water Mage" then
+        imageFile = images['water'] or nil
+    elseif settings.currentTheme == "Fire Mage" then
+        imageFile = images['fire'] or nil
+    elseif settings.currentTheme ~= "Water Mage" and settings.currentTheme ~= "Fire Mage" then
+        imageFile = images['default'] or nil
+    end
     if not open then
         openGUI = false
     end
@@ -558,7 +568,7 @@ function MageGearGUI()
                     local isSelected = (themeName == settings.currentTheme)
                     if imgui.Selectable(themeName, isSelected) then
                         settings.currentTheme = themeName
-                        saveSettings()
+                        needSave = true
                     end
                     if isSelected then imgui.SetItemDefaultFocus() end
                 end
@@ -1212,19 +1222,13 @@ while openGUI do
         local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
         local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
         filePath = string.format("%s/%s/", mq.luaDir, scriptFolder)
-        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
-        lastImage = 'mage.png'
+        images = {
+            ['default'] = mq.CreateTexture(filePath .. "mage.png"),
+            ['fire'] = mq.CreateTexture(filePath .. "fire.png"),
+            ['water'] = mq.CreateTexture(filePath .. "water.png"),
+        }
     end
-    if settings.currentTheme == "Water Mage" and lastImage ~= 'water.png' then
-        imageFile = mq.CreateTexture(filePath .. "water.png") or nil
-        lastImage = 'water.png'
-    elseif settings.currentTheme == "Fire Mage" and lastImage ~= 'fire.png' then
-        imageFile = mq.CreateTexture(filePath .. "fire.png") or nil
-        lastImage = 'fire.png'
-    elseif settings.currentTheme ~= "Water Mage" and settings.currentTheme ~= "Fire Mage" and lastImage ~= 'mage.png' then
-        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
-        lastImage = 'mage.png'
-    end
+
     mq.doevents()
     mq.delay(10)
 
@@ -1317,6 +1321,11 @@ while openGUI do
             end
         end
 
+        if needSave then
+            saveSettings()
+            needSave = false
+        end
+
         if needMove then
             MGear('\ayWaiting to reach pet, retrying...')
         else
@@ -1325,7 +1334,7 @@ while openGUI do
         if not doRun then unpauseRGMercs() end
     end
 end
-saveSettings()
+
 mq.unevent('mage_toys')
 mq.unevent('list_toys')
 mq.unevent("mage_hailed")
