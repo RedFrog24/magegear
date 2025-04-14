@@ -522,6 +522,7 @@ local function getHoverColor()
 end
 
 local imageFile = nil
+local filePath = nil
 
 function MageGearGUI()
     local main_viewport = imgui.GetMainViewport()
@@ -530,260 +531,260 @@ function MageGearGUI()
 
     local ColorCount, StyleCount = Themes.StartTheme(settings.currentTheme, ThemeData)
     local show = false
-    local open, draw = imgui.Begin("Mage Gear (DoN EMU) v2.3.20", true)
+    local open, draw = imgui.Begin("Mage Gear (DoN EMU) v2.3.21###MageGear", true)
 
     if not open then
         openGUI = false
     end
 
     if draw then
-        if imageFile == nil then
-            -- get last PID
-            local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
-            local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
-            local filePath = string.format("%s/%s/mage.png", mq.luaDir, scriptFolder)
-            printf("%s", scriptFolder)
-            imageFile = mq.CreateTexture(filePath) or nil
-        end
         local cursorX, cursorY = imgui.GetCursorPos()
         local sizeX, sizeY = imgui.GetContentRegionAvail()
         if settings.showBackground and imageFile ~= nil then
             ImGui.Indent(5)
-            ImGui.Image(imageFile:GetTextureID(), ImVec2(sizeX, sizeY), nil, nil, ImVec4(1, 1, 1, 0.25))
+            ImGui.Image(imageFile:GetTextureID(), ImVec2(sizeX, sizeY)) -- optional to adjust image alpha coloring (, nil, nil, ImVec4(1, 1, 1, 0.5))
             ImGui.Unindent(5)
             ImGui.SetCursorPos(cursorX, cursorY)
         end
-        imgui.Text("Theme:")
-        imgui.SameLine()
-        imgui.SetNextItemWidth(150)
-        if imgui.BeginCombo("##Theme", settings.currentTheme) then
-            for _, themeName in ipairs(themeNames) do
-                local isSelected = (themeName == settings.currentTheme)
-                if imgui.Selectable(themeName, isSelected) then
-                    settings.currentTheme = themeName
-                    saveSettings()
+        local frameBG = ImGui.GetStyleColorVec4(ImGuiCol.FrameBg)
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, ImVec4(frameBG.x, frameBG.y, frameBG.z, 0.4)) -- background color for combo boxes at 40% alpha
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImVec4(0, 0, 0, 0.5))                         -- child background at half alpha to mute the background image
+        if ImGui.BeginChild("##child", 0, 0, ImGuiChildFlags.Border) then
+            imgui.Text("Theme:")
+            imgui.SameLine()
+            imgui.SetNextItemWidth(150)
+            if imgui.BeginCombo("##Theme", settings.currentTheme) then
+                for _, themeName in ipairs(themeNames) do
+                    local isSelected = (themeName == settings.currentTheme)
+                    if imgui.Selectable(themeName, isSelected) then
+                        settings.currentTheme = themeName
+                        saveSettings()
+                    end
+                    if isSelected then imgui.SetItemDefaultFocus() end
                 end
-                if isSelected then imgui.SetItemDefaultFocus() end
+                imgui.EndCombo()
             end
-            imgui.EndCombo()
-        end
-        imgui.SameLine()
-        ImGui.Text("Show Background:")
-        imgui.SameLine()
-        settings.showBackground = drawToggle("Background", settings.showBackground)
+            imgui.SameLine()
+            ImGui.Text("Show Background:")
+            imgui.SameLine()
+            settings.showBackground = drawToggle("Background", settings.showBackground)
 
-        imgui.Separator()
+            imgui.Separator()
 
-        imgui.Text("Summon:")
-        imgui.SameLine()
-        local malachiteCount = mq.TLO.FindItemCount("Malachite")() or 0
-        local color
-        if malachiteCount > 15 then
-            color = ImVec4(0, 1, 0, 1)
-        elseif malachiteCount >= 6 then
-            color = ImVec4(1, 1, 0, 1)
-        else
-            color = ImVec4(1, 0, 0, 1)
-        end
-        imgui.SetCursorPosX(imgui.GetWindowWidth() - imgui.CalcTextSize("Malachites: " .. malachiteCount) - 10)
-        imgui.PushStyleColor(ImGuiCol.Text, color)
-        imgui.Text("Malachites: " .. malachiteCount)
-        imgui.PopStyleColor()
-
-        local newSelectedPet = drawCombo("", settings.selectedPet, petSpells, true)
-        if newSelectedPet ~= settings.selectedPet then
-            settings.selectedPet = newSelectedPet
-            if settings.selectedPet > 0 then
-                MGear('\aySelected: ' .. petSpells[settings.selectedPet].spell .. ' (Index ' .. settings.selectedPet .. ')')
+            imgui.Text("Summon:")
+            imgui.SameLine()
+            local malachiteCount = mq.TLO.FindItemCount("Malachite")() or 0
+            local color
+            if malachiteCount > 15 then
+                color = ImVec4(0, 1, 0, 1)
+            elseif malachiteCount >= 6 then
+                color = ImVec4(1, 1, 0, 1)
+            else
+                color = ImVec4(1, 0, 0, 1)
             end
-        end
-        imgui.SameLine()
-        imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 0.8 + math.sin(os.clock() * 2) * 0.2))
-        imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
-        if imgui.Button("Summon") then
-            doSummonPet = true
-        end
-        imgui.PopStyleColor(2)
+            imgui.SetCursorPosX(imgui.GetWindowWidth() - imgui.CalcTextSize("Malachites: " .. malachiteCount) - 10)
+            imgui.PushStyleColor(ImGuiCol.Text, color)
+            imgui.Text("Malachites: " .. malachiteCount)
+            imgui.PopStyleColor()
 
-        imgui.Separator()
-
-        imgui.Text("Summon Options:")
-        if ImGui.BeginTable("##Settings", 4, ImGuiTableFlags.Borders) then
-            ImGui.TableNextRow()
-
-            imgui.TableNextColumn()
-            ImGui.Text("Weapons:")
-            imgui.TableNextColumn()
-            settings.doWeapons = drawToggle("Weapons", settings.doWeapons)
-
-            imgui.TableNextColumn()
-            ImGui.Text("Belt:")
-            imgui.TableNextColumn()
-            settings.doBelt = drawToggle("Belt", settings.doBelt)
-
-            imgui.TableNextColumn()
-            ImGui.Text("Mask:")
-            imgui.TableNextColumn()
-            settings.doMask = drawToggle("Mask", settings.doMask)
-
-            imgui.TableNextColumn()
-            ImGui.Text("Armor:")
-            imgui.TableNextColumn()
-            settings.doArmor = drawToggle("Armor", settings.doArmor)
-
-            imgui.TableNextColumn()
-            ImGui.Text("Jewelry:")
-            imgui.TableNextColumn()
-            settings.doJewelry = drawToggle("Jewelry", settings.doJewelry)
-
-            -- skip empty slots to keep rows aligned
-            ImGui.TableNextColumn()
-            ImGui.TableNextColumn()
-
-            imgui.TableNextColumn()
-            ImGui.Text("Focus Items:")
-            imgui.TableNextColumn()
-            settings.doFocus = drawToggle("Focus", settings.doFocus)
-
-            imgui.TableNextColumn()
-            ImGui.Text("Player Items:")
-            imgui.TableNextColumn()
-            settings.doPlayer = drawToggle("Player Items", settings.doPlayer)
-            -- settings.keepBags = drawToggle("", settings.keepBags)
-            imgui.EndTable()
-        end
-
-        imgui.SeparatorText('Pet Items')
-
-        if settings.doWeapons and #petWeps > 0 then
-            local newPetPriWep = drawCombo("Primary", settings.petPriWep, petWeps, false)
-            if newPetPriWep ~= settings.petPriWep then
-                settings.petPriWep = newPetPriWep
-                if settings.petPriWep > 0 then
-                    MGear('\aySelected Primary: ' .. petWeps[settings.petPriWep].spell .. ' (Index ' .. settings.petPriWep .. ')')
+            local newSelectedPet = drawCombo("", settings.selectedPet, petSpells, true)
+            if newSelectedPet ~= settings.selectedPet then
+                settings.selectedPet = newSelectedPet
+                if settings.selectedPet > 0 then
+                    MGear('\aySelected: ' .. petSpells[settings.selectedPet].spell .. ' (Index ' .. settings.selectedPet .. ')')
                 end
             end
-            local newPetSecWep = drawCombo("Secondary", settings.petSecWep, petWeps, false)
-            if newPetSecWep ~= settings.petSecWep then
-                settings.petSecWep = newPetSecWep
-                if settings.petSecWep > 0 then
-                    MGear('\aySelected Secondary: ' .. petWeps[settings.petSecWep].spell .. ' (Index ' .. settings.petSecWep .. ')')
-                end
+            imgui.SameLine()
+            ImGui.PushStyleColor(ImGuiCol.Text, ImVec4(0, 0, 1, 1))
+            imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0, 1, 0, 0.8 + math.sin(os.clock() * 2) * 0.2))
+            imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
+            if imgui.Button("Summon") then
+                doSummonPet = true
             end
-        end
+            imgui.PopStyleColor(3)
 
-        if settings.doBelt and #beltSpells > 0 then
-            local newSelectedBelt = drawCombo("Belt", settings.selectedBelt, beltSpells, false)
-            if newSelectedBelt ~= settings.selectedBelt then
-                settings.selectedBelt = newSelectedBelt
-                if settings.selectedBelt > 0 then
-                    MGear('\aySelected Belt: ' .. beltSpells[settings.selectedBelt].spell .. ' (Index ' .. settings.selectedBelt .. ')')
-                end
+            imgui.Separator()
+
+            imgui.Text("Summon Options:")
+            if ImGui.BeginTable("##Settings", 4, ImGuiTableFlags.Borders) then
+                ImGui.TableNextRow()
+
+                imgui.TableNextColumn()
+                ImGui.Text("Weapons:")
+                imgui.TableNextColumn()
+                settings.doWeapons = drawToggle("Weapons", settings.doWeapons)
+
+                imgui.TableNextColumn()
+                ImGui.Text("Belt:")
+                imgui.TableNextColumn()
+                settings.doBelt = drawToggle("Belt", settings.doBelt)
+
+                imgui.TableNextColumn()
+                ImGui.Text("Mask:")
+                imgui.TableNextColumn()
+                settings.doMask = drawToggle("Mask", settings.doMask)
+
+                imgui.TableNextColumn()
+                ImGui.Text("Armor:")
+                imgui.TableNextColumn()
+                settings.doArmor = drawToggle("Armor", settings.doArmor)
+
+                imgui.TableNextColumn()
+                ImGui.Text("Jewelry:")
+                imgui.TableNextColumn()
+                settings.doJewelry = drawToggle("Jewelry", settings.doJewelry)
+
+                -- skip empty slots to keep rows aligned
+                ImGui.TableNextColumn()
+                ImGui.TableNextColumn()
+
+                imgui.TableNextColumn()
+                ImGui.Text("Focus Items:")
+                imgui.TableNextColumn()
+                settings.doFocus = drawToggle("Focus", settings.doFocus)
+
+                imgui.TableNextColumn()
+                ImGui.Text("Player Items:")
+                imgui.TableNextColumn()
+                settings.doPlayer = drawToggle("Player Items", settings.doPlayer)
+                -- settings.keepBags = drawToggle("", settings.keepBags)
+                imgui.EndTable()
             end
-        end
 
-        if settings.doMask and #maskSpells > 0 then
-            local newSelectedMask = drawCombo("Mask", settings.selectedMask, maskSpells, false)
-            if newSelectedMask ~= settings.selectedMask then
-                settings.selectedMask = newSelectedMask
-                if settings.selectedMask > 0 then
-                    MGear('\aySelected Mask: ' .. maskSpells[settings.selectedMask].spell .. ' (Index ' .. settings.selectedMask .. ')')
+            imgui.SeparatorText('Pet Items')
+
+            if settings.doWeapons and #petWeps > 0 then
+                local newPetPriWep = drawCombo("Primary", settings.petPriWep, petWeps, false)
+                if newPetPriWep ~= settings.petPriWep then
+                    settings.petPriWep = newPetPriWep
+                    if settings.petPriWep > 0 then
+                        MGear('\aySelected Primary: ' .. petWeps[settings.petPriWep].spell .. ' (Index ' .. settings.petPriWep .. ')')
+                    end
                 end
-            end
-        end
-
-        if settings.doArmor and #armorSpells > 0 then
-            local newSelectedArmor = drawCombo("Armor", settings.selectedArmor, armorSpells, false)
-            if newSelectedArmor ~= settings.selectedArmor then
-                settings.selectedArmor = newSelectedArmor
-                if settings.selectedArmor > 0 then
-                    MGear('\aySelected Armor: ' .. armorSpells[settings.selectedArmor].spell .. ' (Index ' .. settings.selectedArmor .. ')')
-                end
-            end
-        end
-
-        if settings.doJewelry and #jewelrySpells > 0 then
-            local newSelectedJewelry = drawCombo("Jewelry", settings.selectedJewelry, jewelrySpells, false)
-            if newSelectedJewelry ~= settings.selectedJewelry then
-                settings.selectedJewelry = newSelectedJewelry
-                if settings.selectedJewelry > 0 then
-                    MGear('\aySelected Jewelry: ' .. jewelrySpells[settings.selectedJewelry].spell .. ' (Index ' .. settings.selectedJewelry .. ')')
-                end
-            end
-        end
-
-        if settings.doFocus or settings.doPlayer then
-            ImGui.SeparatorText("Player Items")
-
-            if settings.doFocus and #focusSpells > 0 then
-                local newSelectedFocus = drawCombo("Focus", settings.selectedFocus, focusSpells, false)
-                if newSelectedFocus ~= settings.selectedFocus then
-                    settings.selectedFocus = newSelectedFocus
-                    if settings.selectedFocus > 0 then
-                        MGear('\aySelected Focus: ' .. focusSpells[settings.selectedFocus].spell .. ' (Index ' .. settings.selectedFocus .. ')')
+                local newPetSecWep = drawCombo("Secondary", settings.petSecWep, petWeps, false)
+                if newPetSecWep ~= settings.petSecWep then
+                    settings.petSecWep = newPetSecWep
+                    if settings.petSecWep > 0 then
+                        MGear('\aySelected Secondary: ' .. petWeps[settings.petSecWep].spell .. ' (Index ' .. settings.petSecWep .. ')')
                     end
                 end
             end
 
-            if settings.doPlayer and #playerItems > 0 then
-                local newSelectedPlayerItem = drawCombo("Player Item", settings.selectedPlayerItem, playerItems, false)
-                if newSelectedPlayerItem ~= settings.selectedPlayerItem then
-                    settings.selectedPlayerItem = newSelectedPlayerItem
-                    if settings.selectedPlayerItem > 0 then
-                        MGear('\aySelected Player Item: ' .. playerItems[settings.selectedPlayerItem].spell .. ' (Index ' .. settings.selectedPlayerItem .. ')')
+            if settings.doBelt and #beltSpells > 0 then
+                local newSelectedBelt = drawCombo("Belt", settings.selectedBelt, beltSpells, false)
+                if newSelectedBelt ~= settings.selectedBelt then
+                    settings.selectedBelt = newSelectedBelt
+                    if settings.selectedBelt > 0 then
+                        MGear('\aySelected Belt: ' .. beltSpells[settings.selectedBelt].spell .. ' (Index ' .. settings.selectedBelt .. ')')
                     end
                 end
             end
-        end
-        ImGui.PushStyleColor(ImGuiCol.Text, ImVec4(0, 0, 0, 1.000))
 
-        imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.2, 1, 0.4, 0.75))
-        imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
-        if imgui.Button('Self') then
-            GearTarget = 'Self'
-            doRun = true
-        end
-        imgui.PopStyleColor(2)
-
-        imgui.SameLine()
-
-        imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.781, 0.422, 0.178, 1.000))
-        imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
-        if imgui.Button('Target') then
-            if mq.TLO.Target.ID() > 0 then
-                GearTarget = 'Target'
-                doRun = true
-            else
-                MGear('\arError\ax: No target')
+            if settings.doMask and #maskSpells > 0 then
+                local newSelectedMask = drawCombo("Mask", settings.selectedMask, maskSpells, false)
+                if newSelectedMask ~= settings.selectedMask then
+                    settings.selectedMask = newSelectedMask
+                    if settings.selectedMask > 0 then
+                        MGear('\aySelected Mask: ' .. maskSpells[settings.selectedMask].spell .. ' (Index ' .. settings.selectedMask .. ')')
+                    end
+                end
             end
-        end
-        imgui.PopStyleColor(2)
-        imgui.SameLine()
 
-        imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.2, 0.7, 0.7, 1))
-        imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
-        if imgui.Button('Group') then
-            if mq.TLO.Group() then
-                GearTarget = 'Group'
-                doRun = true
-            else
-                MGear('\arError\ax: Not in a group')
+            if settings.doArmor and #armorSpells > 0 then
+                local newSelectedArmor = drawCombo("Armor", settings.selectedArmor, armorSpells, false)
+                if newSelectedArmor ~= settings.selectedArmor then
+                    settings.selectedArmor = newSelectedArmor
+                    if settings.selectedArmor > 0 then
+                        MGear('\aySelected Armor: ' .. armorSpells[settings.selectedArmor].spell .. ' (Index ' .. settings.selectedArmor .. ')')
+                    end
+                end
             end
-        end
-        imgui.PopStyleColor(3)
 
-        lastPriWep = settings.petPriWep
-        lastSecWep = settings.petSecWep
-        lastPet = settings.selectedPet
-        lastBelt = settings.selectedBelt
-        lastMask = settings.selectedMask
-        lastArmor = settings.selectedArmor
-        lastJewelry = settings.selectedJewelry
-        lastFocus = settings.selectedFocus
-        lastPlayerItem = settings.selectedPlayerItem
+            if settings.doJewelry and #jewelrySpells > 0 then
+                local newSelectedJewelry = drawCombo("Jewelry", settings.selectedJewelry, jewelrySpells, false)
+                if newSelectedJewelry ~= settings.selectedJewelry then
+                    settings.selectedJewelry = newSelectedJewelry
+                    if settings.selectedJewelry > 0 then
+                        MGear('\aySelected Jewelry: ' .. jewelrySpells[settings.selectedJewelry].spell .. ' (Index ' .. settings.selectedJewelry .. ')')
+                    end
+                end
+            end
+
+            if settings.doFocus or settings.doPlayer then
+                ImGui.SeparatorText("Player Items")
+
+                if settings.doFocus and #focusSpells > 0 then
+                    local newSelectedFocus = drawCombo("Focus", settings.selectedFocus, focusSpells, false)
+                    if newSelectedFocus ~= settings.selectedFocus then
+                        settings.selectedFocus = newSelectedFocus
+                        if settings.selectedFocus > 0 then
+                            MGear('\aySelected Focus: ' .. focusSpells[settings.selectedFocus].spell .. ' (Index ' .. settings.selectedFocus .. ')')
+                        end
+                    end
+                end
+
+                if settings.doPlayer and #playerItems > 0 then
+                    local newSelectedPlayerItem = drawCombo("Player Item", settings.selectedPlayerItem, playerItems, false)
+                    if newSelectedPlayerItem ~= settings.selectedPlayerItem then
+                        settings.selectedPlayerItem = newSelectedPlayerItem
+                        if settings.selectedPlayerItem > 0 then
+                            MGear('\aySelected Player Item: ' .. playerItems[settings.selectedPlayerItem].spell .. ' (Index ' .. settings.selectedPlayerItem .. ')')
+                        end
+                    end
+                end
+            end
+            ImGui.PushStyleColor(ImGuiCol.Text, ImVec4(0, 0, 0, 1.000))
+
+            imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.2, 1, 0.4, 0.75))
+            imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
+            if imgui.Button('Self') then
+                GearTarget = 'Self'
+                doRun = true
+            end
+            imgui.PopStyleColor(2)
+
+            imgui.SameLine()
+
+            imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.781, 0.422, 0.178, 1.000))
+            imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
+            if imgui.Button('Target') then
+                if mq.TLO.Target.ID() > 0 then
+                    GearTarget = 'Target'
+                    doRun = true
+                else
+                    MGear('\arError\ax: No target')
+                end
+            end
+            imgui.PopStyleColor(2)
+            imgui.SameLine()
+
+            imgui.PushStyleColor(ImGuiCol.Button, ImVec4(0.2, 0.7, 0.7, 1))
+            imgui.PushStyleColor(ImGuiCol.ButtonHovered, getHoverColor())
+            if imgui.Button('Group') then
+                if mq.TLO.Group() then
+                    GearTarget = 'Group'
+                    doRun = true
+                else
+                    MGear('\arError\ax: Not in a group')
+                end
+            end
+            imgui.PopStyleColor(3)
+
+            lastPriWep = settings.petPriWep
+            lastSecWep = settings.petSecWep
+            lastPet = settings.selectedPet
+            lastBelt = settings.selectedBelt
+            lastMask = settings.selectedMask
+            lastArmor = settings.selectedArmor
+            lastJewelry = settings.selectedJewelry
+            lastFocus = settings.selectedFocus
+            lastPlayerItem = settings.selectedPlayerItem
+        end
+        ImGui.PopStyleColor(2)
+        ImGui.EndChild()
     end
-    Themes.EndTheme(ColorCount, StyleCount)
 
+    Themes.EndTheme(ColorCount, StyleCount)
     imgui.End()
     return open
 end
@@ -1203,10 +1204,30 @@ local function isWizardFamiliar(pet)
 end
 
 openGUI = init()
+local lastImage = ''
 
 while openGUI do
+    if filePath == nil then
+        -- get last PID
+        local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
+        local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
+        filePath = string.format("%s/%s/", mq.luaDir, scriptFolder)
+        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
+        lastImage = 'mage.png'
+    end
+    if settings.currentTheme == "Water Mage" and lastImage ~= 'water.png' then
+        imageFile = mq.CreateTexture(filePath .. "water.png") or nil
+        lastImage = 'water.png'
+    elseif settings.currentTheme == "Fire Mage" and lastImage ~= 'fire.png' then
+        imageFile = mq.CreateTexture(filePath .. "fire.png") or nil
+        lastImage = 'fire.png'
+    elseif settings.currentTheme ~= "Water Mage" and settings.currentTheme ~= "Fire Mage" and lastImage ~= 'mage.png' then
+        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
+        lastImage = 'mage.png'
+    end
     mq.doevents()
-    mq.delay(500)
+    mq.delay(10)
+
 
     while doSummonPet do
         if mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then pauseRGMercs() end
