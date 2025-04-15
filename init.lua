@@ -26,11 +26,16 @@ local lastBelt = -1
 local lastMask = -1
 local lastArmor = -1
 local lastJewelry = -1
+local lastModrod = -1
 local lastComboChange = {}
 local tradePetName = ''
 local MyName = mq.TLO.Me.CleanName()
 local settings = {}
 local settingsFile = string.format("%s/mage_gear_%s.lua", mq.configDir, MyName)
+local images = {}
+local needSave = false
+local imageFile = nil
+local FilePath = nil
 
 local defaults = {
     currentTheme = "Grape",
@@ -43,6 +48,7 @@ local defaults = {
     selectedJewelry = 1,
     selectedFocus = 1,
     selectedPlayerItem = 1,
+    selectedModrod = 1,
     doFocus = false,
     doPlayer = false,
     doWeapons = true,
@@ -50,9 +56,12 @@ local defaults = {
     doMask = false,
     doArmor = false,
     doJewelry = false,
+    doModrod = false,
     keepBags = false,
     showBackground = true,
 }
+
+local petMasters = {}
 
 -- Full Weapons Table
 local petWeps = {}
@@ -76,6 +85,8 @@ local playerItems = {}
 -- Full Jewelry Spells Table
 local jewelrySpells = {}
 
+local modRods = {}
+
 -- Blacklist for wizard familiars
 local familiarSpells = {
     "Familiar",
@@ -94,6 +105,7 @@ local function getSpells()
     focusSpells = {}
     playerItems = {}
     petWeps = {}
+    modRods = {}
     for i = 1, 1000 do
         local bookSpell = mq.TLO.Me.Book(i)
         if bookSpell() then
@@ -130,8 +142,12 @@ local function getSpells()
                     else
                         table.insert(petWeps, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                     end
-                elseif spellSubCat == "Summon Food/Water" then
-                    table.insert(playerItems, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                elseif spellSubCat == "Summon Food/Water" or spellSubCat == 'Summon Utility' then
+                    if lowerName:find('modulating') or lowerName:find('transvergence') or lowerName:find('modulation') then
+                        table.insert(modRods, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    else
+                        table.insert(playerItems, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
+                    end
                 elseif spellSubCat == "Summon Focus" then
                     table.insert(focusSpells, { spell = spellName, item = spellName, level = spellLvl, desc = spellDesc, })
                 elseif lowerName:find("jewelry bag") or lowerName:find("pouch of jerikor") then
@@ -149,9 +165,10 @@ local function getSpells()
     table.sort(jewelrySpells, function(a, b) return a.level > b.level end)
     table.sort(focusSpells, function(a, b) return a.level > b.level end)
     table.sort(playerItems, function(a, b) return a.level > b.level end)
+    table.sort(modRods, function(a, b) return a.level > b.level end)
 
-    MGear(string.format('\aySpell counts - Pets: %d, Weapons: %d, Belts: %d, Masks: %d, Armor: %d, Jewelry: %d, Focus: %d, Player: %d',
-        #petSpells, #petWeps, #beltSpells, #maskSpells, #armorSpells, #jewelrySpells, #focusSpells, #playerItems))
+    MGear(string.format('\aySpell counts - Pets: %d, Weapons: %d, Belts: %d, Masks: %d, Armor: %d, Jewelry: %d, Focus: %d, Player: %d, ModRods: %d',
+        #petSpells, #petWeps, #beltSpells, #maskSpells, #armorSpells, #jewelrySpells, #focusSpells, #playerItems, #modRods))
 end
 
 local function GetThemeNames()
@@ -251,6 +268,10 @@ local function ListItems(line, who)
         catName = 'player'
         category = playerItems
         subLine = line:sub(line:find("player") + 7)
+    elseif line:find('modrod') then
+        catName = 'modrod'
+        category = modRods
+        subLine = line:sub(line:find("modrod") + 7)
     else
         MGear('\arError\ax: Invalid option. Use weapons, belt, mask, armor, focus, player, or jewelry.')
         return
@@ -297,6 +318,7 @@ function SetCategories(cat)
         settings.doJewelry = true
         settings.doFocus = false
         settings.doPlayer = false
+        settings.doModrod = false
     elseif cat == 'none' then
         settings.doWeapons = false
         settings.doBelt = false
@@ -305,6 +327,7 @@ function SetCategories(cat)
         settings.doJewelry = false
         settings.doFocus = false
         settings.doPlayer = false
+        settings.doModrod = false
     else
         settings.doWeapons = false
         settings.doBelt = false
@@ -313,6 +336,7 @@ function SetCategories(cat)
         settings.doJewelry = false
         settings.doFocus = false
         settings.doPlayer = false
+        settings.doModrod = false
         settings['do' .. properCase(cat)] = true
     end
 end
@@ -357,6 +381,9 @@ local function ItemHandler(line, who, cat)
     elseif cat == 'player' then
         settings.selectedPlayerItem = tonumber(indexes[1]) or lastPlayerItem
         SetCategories(cat)
+    elseif cat == 'modrod' then
+        settings.selectedModrod = tonumber(indexes[1]) or lastModrod
+        SetCategories(cat)
     else
         MGear('\arError\ax: Invalid option. Use weapons, belt, mask, armor, focus, player, or jewelry.')
         return
@@ -382,6 +409,22 @@ local function hailed(line, who)
     mq.delay(1000)
     reply = string.format("/tell %s Send me a tell for items /tell %s list weapons, belt, mask, armor, focus, player, or jewelry", who, MyName)
     mq.cmdf(reply)
+end
+
+local function getNearbyPetMasters()
+    local nearbyPetMasters = {}
+    local petMastersCount = mq.TLO.SpawnCount('pcpet')() or 0
+    if petMastersCount > 0 then
+        for i = 1, petMastersCount do
+            local spawn = mq.TLO.NearestSpawn(i, 'pcpet')
+            if spawn() and spawn.Master() then
+                local name = spawn.Master()
+                local petName = spawn.Pet.Name()
+                table.insert(nearbyPetMasters, { name = name, petName = petName, })
+            end
+        end
+    end
+    return nearbyPetMasters
 end
 
 local function BuildEvents()
@@ -411,6 +454,21 @@ local function init()
         MGear('\arError\ax: You are not a Magician! Program ending!')
         return false
     end
+    if FilePath == nil then
+        mq.delay(10)
+
+        -- get last PID
+        local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
+        local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
+        FilePath = string.format("%s/%s/", mq.luaDir, scriptFolder)
+        images = {
+            ['default'] = mq.CreateTexture(FilePath .. "mage.png"),
+            ['fire'] = mq.CreateTexture(FilePath .. "fire.png"),
+            ['water'] = mq.CreateTexture(FilePath .. "water.png"),
+        }
+    end
+
+    petMasters = getNearbyPetMasters()
 
     getSpells()
     loadSettings()
@@ -423,6 +481,7 @@ local function init()
     lastJewelry = settings.selectedJewelry
     lastFocus = settings.selectedFocus
     lastPlayerItem = settings.selectedPlayerItem
+    lastModrod = settings.selectedModrod
 
     MGear('\apGreetings Mage! What would you like to Summon?')
     mq.imgui.init('Mage Gear', MageGearGUI)
@@ -468,6 +527,7 @@ local function drawCombo(label, current, items, isPet)
                 if comboValue ~= i and os.clock() - lastChange > 0.5 then
                     comboValue = i
                     lastComboChange[label] = os.clock()
+                    needSave = true
                 end
             end
             if imgui.IsItemHovered() then
@@ -505,6 +565,7 @@ local function drawToggle(label, value)
         imgui.EndTooltip()
         if imgui.IsMouseClicked(0) then
             value = not value
+            needSave = true
         end
     end
     imgui.PopID()
@@ -521,8 +582,49 @@ local function getHoverColor()
     end
 end
 
-local imageFile = nil
-local filePath = nil
+local drawPetOwners = false
+
+local function RenderList()
+    if not drawPetOwners then return end
+
+    if ImGui.BeginChild("Targets", 200, 0, bit32.bor(ImGuiChildFlags.Border, ImGuiChildFlags.ResizeX)) then
+        if ImGui.Button('Refresh') then
+            petMasters = getNearbyPetMasters()
+        end
+        ImGui.SameLine()
+        if ImGui.Button('Close') then
+            drawPetOwners = false
+        end
+        ImGui.SeparatorText('Nearby Pet Owners')
+
+        for i, PetMaster in ipairs(petMasters) do
+            local petName = PetMaster.petName or 'Unknown'
+            local masterName = PetMaster.name or 'Unknown'
+            if masterName ~= MyName then
+                ImGui.PushID(masterName)
+
+                -- Rainbow shift with phase offset
+                local t = os.clock() + i
+                local r = math.sin(t * 1.0) * 0.5 + 0.5
+                local g = math.sin(t * 1.0 + 2) * 0.5 + 0.5
+                local b = math.sin(t * 1.0 + 4) * 0.5 + 0.5
+
+                ImGui.PushStyleColor(ImGuiCol.Button, ImVec4(r, g, b, 0.6))
+
+                if imgui.Button(masterName) then
+                    mq.cmdf("/target %s", masterName)
+                    GearTarget = 'Target'
+                    doRun = true
+                end
+
+                ImGui.PopStyleColor(1)
+                ImGui.PopID()
+            end
+        end
+    end
+    imgui.EndChild()
+end
+
 
 function MageGearGUI()
     local main_viewport = imgui.GetMainViewport()
@@ -532,7 +634,13 @@ function MageGearGUI()
     local ColorCount, StyleCount = Themes.StartTheme(settings.currentTheme, ThemeData)
     local show = false
     local open, draw = imgui.Begin("Mage Gear (DoN EMU) v2.3.21###MageGear", true)
-
+    if settings.currentTheme == "Water Mage" then
+        imageFile = images['water'] or nil
+    elseif settings.currentTheme == "Fire Mage" then
+        imageFile = images['fire'] or nil
+    elseif settings.currentTheme ~= "Water Mage" and settings.currentTheme ~= "Fire Mage" then
+        imageFile = images['default'] or nil
+    end
     if not open then
         openGUI = false
     end
@@ -549,6 +657,11 @@ function MageGearGUI()
         local frameBG = ImGui.GetStyleColorVec4(ImGuiCol.FrameBg)
         ImGui.PushStyleColor(ImGuiCol.FrameBg, ImVec4(frameBG.x, frameBG.y, frameBG.z, 0.4)) -- background color for combo boxes at 40% alpha
         ImGui.PushStyleColor(ImGuiCol.ChildBg, ImVec4(0, 0, 0, 0.5))                         -- child background at half alpha to mute the background image
+        if drawPetOwners then
+            RenderList()
+            ImGui.SameLine()
+        end
+
         if ImGui.BeginChild("##child", 0, 0, ImGuiChildFlags.Border) then
             imgui.Text("Theme:")
             imgui.SameLine()
@@ -558,7 +671,7 @@ function MageGearGUI()
                     local isSelected = (themeName == settings.currentTheme)
                     if imgui.Selectable(themeName, isSelected) then
                         settings.currentTheme = themeName
-                        saveSettings()
+                        needSave = true
                     end
                     if isSelected then imgui.SetItemDefaultFocus() end
                 end
@@ -636,7 +749,9 @@ function MageGearGUI()
 
                 -- skip empty slots to keep rows aligned
                 ImGui.TableNextColumn()
+                ImGui.Text("Mod Rods:")
                 ImGui.TableNextColumn()
+                settings.doModrod = drawToggle("Mod Rods", settings.doModrod)
 
                 imgui.TableNextColumn()
                 ImGui.Text("Focus Items:")
@@ -710,8 +825,18 @@ function MageGearGUI()
                 end
             end
 
-            if settings.doFocus or settings.doPlayer then
+            if settings.doFocus or settings.doPlayer or settings.doModrod then
                 ImGui.SeparatorText("Player Items")
+
+                if settings.doModrod and #modRods > 0 then
+                    local newSelectedModrod = drawCombo("Mod Rod", settings.selectedModrod, modRods, false)
+                    if newSelectedModrod ~= settings.selectedModrod then
+                        settings.selectedModrod = newSelectedModrod
+                        if settings.selectedModrod > 0 then
+                            MGear('\aySelected Mod Rod: ' .. modRods[settings.selectedModrod].spell .. ' (Index ' .. settings.selectedModrod .. ')')
+                        end
+                    end
+                end
 
                 if settings.doFocus and #focusSpells > 0 then
                     local newSelectedFocus = drawCombo("Focus", settings.selectedFocus, focusSpells, false)
@@ -768,7 +893,12 @@ function MageGearGUI()
                     MGear('\arError\ax: Not in a group')
                 end
             end
-            imgui.PopStyleColor(3)
+            imgui.PopStyleColor(2)
+            imgui.SameLine()
+            if ImGui.Button("Pet Owners") then
+                drawPetOwners = not drawPetOwners
+            end
+            ImGui.PopStyleColor()
 
             lastPriWep = settings.petPriWep
             lastSecWep = settings.petSecWep
@@ -779,6 +909,7 @@ function MageGearGUI()
             lastJewelry = settings.selectedJewelry
             lastFocus = settings.selectedFocus
             lastPlayerItem = settings.selectedPlayerItem
+            lastModrod = settings.selectedModrod
         end
         ImGui.PopStyleColor(2)
         ImGui.EndChild()
@@ -966,16 +1097,19 @@ local function summonItem(spellData)
     end
 
     local cursorAttempts = 0
-    while not mq.TLO.Cursor() and cursorAttempts < 5 do
-        cursorAttempts = cursorAttempts + 1
-        MGear('\ayWaiting for cursor, attempt ' .. cursorAttempts)
-        mq.delay(1500, function() return mq.TLO.Cursor() end)
-    end
+    if mq.TLO.Spell(spellData.spell).TargetType() ~= 'Single' then
+        while not mq.TLO.Cursor() and cursorAttempts < 5 do
+            cursorAttempts = cursorAttempts + 1
+            MGear('\ayWaiting for cursor, attempt ' .. cursorAttempts)
+            mq.delay(1500, function() return mq.TLO.Cursor() end)
+        end
 
-    if not mq.TLO.Cursor() then
-        MGear('\arError\ax: No item on cursor after casting ' .. spellData.spell)
-        return false
+        if not mq.TLO.Cursor() then
+            MGear('\arError\ax: No item on cursor after casting ' .. spellData.spell)
+            return false
+        end
     end
+    if mq.TLO.Cursor():find('Modulating') then mq.cmd("/autoinv") end
 
     MGear('\agSummoned: \ax' .. (spellData.item or spellData.bag or spellData.spell))
     return true
@@ -1112,16 +1246,31 @@ local function giveItemToTarget(targetName, isPet)
         return false
     end
 
-    MemAllSpells()
-
     local success = false
     if not isPet then
         if settings.doFocus and settings.selectedFocus > 0 then
             success = summonItem(focusSpells[settings.selectedFocus]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', focusSpells[settings.selectedFocus].spell))
+            end
         end
 
         if settings.doPlayer and settings.selectedPlayerItem > 0 then
             success = summonItem(playerItems[settings.selectedPlayerItem]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', playerItems[settings.selectedPlayerItem].spell))
+            end
+        end
+
+        if settings.doModrod and settings.selectedModrod > 0 then
+            if not mq.TLO.Me.Gem(modRods[settings.selectedModrod].spell)() then
+                mq.cmdf('/memspell 8 "%s"', modRods[settings.selectedModrod].spell)
+                mq.delay(5000, function() return mq.TLO.Me.Gem(8).Name() == modRods[settings.selectedModrod].spell end)
+            end
+            success = summonItem(modRods[settings.selectedModrod]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', modRods[settings.selectedModrod].spell))
+            end
         end
 
         if success then
@@ -1132,30 +1281,48 @@ local function giveItemToTarget(targetName, isPet)
         if settings.doWeapons and settings.petPriWep > 0 then
             success = summonItem(petWeps[settings.petPriWep]) or success
             if success and settings.petSecWep > 0 then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', petWeps[settings.petPriWep].spell))
                 success = summonItem(petWeps[settings.petSecWep]) or success
+                if success then
+                    MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', petWeps[settings.petSecWep].spell))
+                end
             end
             -- if success then handCursorToPet() end
         end
 
         if settings.doBelt and settings.selectedBelt > 0 then
             success = summonItem(beltSpells[settings.selectedBelt]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', beltSpells[settings.selectedBelt].spell))
+            end
             -- if success then handCursorToPet() end
         end
 
         if settings.doMask and settings.selectedMask > 0 then
             success = summonItem(maskSpells[settings.selectedMask]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', maskSpells[settings.selectedMask].spell))
+            end
             -- if success then handCursorToPet() end
         end
 
         if settings.doArmor and settings.selectedArmor > 0 then
             success = summonItem(armorSpells[settings.selectedArmor]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', armorSpells[settings.selectedArmor].spell))
+            end
             -- if success then handCursorToPet() end
         end
 
         if settings.doJewelry and settings.selectedJewelry > 0 then
             success = summonItem(jewelrySpells[settings.selectedJewelry]) or success
+            if success then
+                MGear(string.format('\agSummoning \ax[\at%s\ax]\ag complete', jewelrySpells[settings.selectedJewelry].spell))
+            end
             -- if success then handCursorToPet() end
         end
+
+
         if success then handCursorToPet() end
     end
 
@@ -1207,24 +1374,6 @@ openGUI = init()
 local lastImage = ''
 
 while openGUI do
-    if filePath == nil then
-        -- get last PID
-        local lastPID = mq.TLO.Lua.PIDs():match("(%d+)$")
-        local scriptFolder = mq.TLO.Lua.Script(lastPID).Name()
-        filePath = string.format("%s/%s/", mq.luaDir, scriptFolder)
-        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
-        lastImage = 'mage.png'
-    end
-    if settings.currentTheme == "Water Mage" and lastImage ~= 'water.png' then
-        imageFile = mq.CreateTexture(filePath .. "water.png") or nil
-        lastImage = 'water.png'
-    elseif settings.currentTheme == "Fire Mage" and lastImage ~= 'fire.png' then
-        imageFile = mq.CreateTexture(filePath .. "fire.png") or nil
-        lastImage = 'fire.png'
-    elseif settings.currentTheme ~= "Water Mage" and settings.currentTheme ~= "Fire Mage" and lastImage ~= 'mage.png' then
-        imageFile = mq.CreateTexture(filePath .. "mage.png") or nil
-        lastImage = 'mage.png'
-    end
     mq.doevents()
     mq.delay(10)
 
@@ -1240,19 +1389,23 @@ while openGUI do
     while doRun do
         if mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then pauseRGMercs() end
 
+        MemAllSpells()
+
         local success = false
-        local playerTrades = (settings.doFocus or settings.doPlayer)
+        local playerTrades = (settings.doFocus or settings.doPlayer or settings.doModrod)
         if playerTrades then
+            if GearTarget == 'Self' then
+                mq.cmdf("/target %s", mq.TLO.Me.CleanName())
+                mq.delay(1000, function() return mq.TLO.Target.CleanName == mq.TLO.Me.CleanName() end)
+            end
             local tradePlayer = mq.TLO.Target
             if not tradePlayer() then
                 MGear('\arError\ax: Invalid target')
             else
                 success = giveItemToTarget(tradePlayer.CleanName(), false)
-                if success then
-                    MGear('\agSummoning Player Items complete')
-                end
             end
         end
+        MemAllSpells()
 
         if GearTarget == 'Self' then
             if not mq.TLO.Me.Pet.ID() then
@@ -1317,6 +1470,11 @@ while openGUI do
             end
         end
 
+        if needSave then
+            saveSettings()
+            needSave = false
+        end
+
         if needMove then
             MGear('\ayWaiting to reach pet, retrying...')
         else
@@ -1325,7 +1483,7 @@ while openGUI do
         if not doRun then unpauseRGMercs() end
     end
 end
-saveSettings()
+
 mq.unevent('mage_toys')
 mq.unevent('list_toys')
 mq.unevent("mage_hailed")
