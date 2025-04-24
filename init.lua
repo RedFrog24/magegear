@@ -36,6 +36,7 @@ local images = {}
 local needSave = false
 local imageFile = nil
 local FilePath = nil
+local targetNow = nil
 
 local defaults = {
     currentTheme = "Grape",
@@ -500,12 +501,15 @@ BuildEvents()
 local function drawCombo(label, current, items, isPet)
     local comboValue = current
     imgui.PushID(label)
+    local castingName = mq.TLO.Me.Casting.Name() or 'none'
 
     local displayText = "Select a spell"
     if current > 0 and items[current] then
         displayText = string.format("%s (Level %d)", items[current].spell, items[current].level)
     end
-
+    if castingName == items[current].spell then
+        ImGui.PushStyleColor(ImGuiCol.Text, ImVec4(0, 1, 1, 1))
+    end
     if imgui.BeginCombo(label, displayText) then
         imgui.PushStyleColor(ImGuiCol.Text, ImVec4(0.7, 0.7, 0.7, 1))
         local isSelectedPlaceholder = (comboValue == 0)
@@ -545,7 +549,9 @@ local function drawCombo(label, current, items, isPet)
         end
         imgui.EndCombo()
     end
-
+    if castingName == items[current].spell then
+        ImGui.PopStyleColor()
+    end
     imgui.PopID()
     return comboValue
 end
@@ -583,7 +589,41 @@ local function getHoverColor()
 end
 
 local drawPetOwners = false
+local startCastTime = 0
+local castBarShow = false
+local function RenderCastBar()
+    castBarShow = mq.TLO.Me.Casting() ~= nil
+    local castingName = mq.TLO.Me.Casting.Name() or nil
+    local castTime = mq.TLO.Spell(castingName).MyCastTime() or 0
+    local timeLeft = mq.TLO.Me.CastTimeLeft() or 0
+    local spellID = mq.TLO.Spell(castingName).ID() or -1
+    if timeLeft > 4000000000 then
+        castTime = 0
+        return
+    end
+    if castingName == nil then
+        startCastTime = 0
+        castBarShow = false
+        return
+    end
+    if not castBarShow then return end
+    if castBarShow then
+        ImGui.BeginChild("##CastBar", ImVec2(-1, -1), bit32.bor(ImGuiChildFlags.None),
+            bit32.bor(ImGuiWindowFlags.NoScrollbar, ImGuiWindowFlags.NoScrollWithMouse))
+        local diff = os.time() - startCastTime
+        local remaining = mq.TLO.Me.CastTimeLeft() --<= castTime and mq.TLO.Me.CastTimeLeft() or 0
+        -- if remaining < 0 then remaining = 0 end
+        local colorHpMin = { 0.0, 1.0, 0.0, 1.0, }
+        local colorHpMax = { 1.0, 0.0, 0.0, 1.0, }
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ImVec4(0.2, 0.2, 0.8, 0.8))
+        ImGui.ProgressBar(remaining / castTime, ImVec2(ImGui.GetWindowWidth(), 15), '')
+        ImGui.PopStyleColor()
+        local lbl = remaining > 0 and string.format("%.1f", (remaining / 1000)) or '0'
 
+        ImGui.Text("%s %ss", castingName, lbl)
+        ImGui.EndChild()
+    end
+end
 local function RenderList()
     if not drawPetOwners then return end
 
@@ -612,6 +652,7 @@ local function RenderList()
                 ImGui.PushStyleColor(ImGuiCol.Button, ImVec4(r, g, b, 0.6))
 
                 if imgui.Button(masterName) then
+                    targetNow = masterName
                     mq.cmdf("/target %s", masterName)
                     GearTarget = 'Target'
                     doRun = true
@@ -656,7 +697,7 @@ function MageGearGUI()
         end
         local frameBG = ImGui.GetStyleColorVec4(ImGuiCol.FrameBg)
         ImGui.PushStyleColor(ImGuiCol.FrameBg, ImVec4(frameBG.x, frameBG.y, frameBG.z, 0.4)) -- background color for combo boxes at 40% alpha
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImVec4(0, 0, 0, 0.5))                         -- child background at half alpha to mute the background image
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImVec4(0, 0, 0, 0.7))                         -- child background at half alpha to mute the background image
         if drawPetOwners then
             RenderList()
             ImGui.SameLine()
@@ -912,6 +953,8 @@ function MageGearGUI()
             lastModrod = settings.selectedModrod
         end
         ImGui.PopStyleColor(2)
+        ImGui.Spacing()
+        RenderCastBar()
         ImGui.EndChild()
     end
 
@@ -1385,7 +1428,11 @@ while openGUI do
         doSummonPet = false
         unpauseRGMercs()
     end
-
+    if targetNow ~= nil then
+        mq.cmdf("/target %s", targetNow)
+        mq.delay(3000, function() return mq.TLO.Target.CleanName() == targetNow end)
+        targetNow = nil
+    end
     while doRun do
         if mq.TLO.Lua.Script('rgmercs').Status() == 'RUNNING' then pauseRGMercs() end
 
