@@ -419,7 +419,7 @@ local function getNearbyPetMasters()
             local spawn = mq.TLO.NearestSpawn(i, 'pcpet')
             if spawn() and spawn.Master() then
                 local name = spawn.Master()
-                local petName = spawn.Pet.Name()
+                local petName = spawn.Name()
                 table.insert(nearbyPetMasters, { name = name, petName = petName, })
             end
         end
@@ -591,6 +591,11 @@ local function RenderList()
         if ImGui.Button('Refresh') then
             petMasters = getNearbyPetMasters()
         end
+        
+        if ImGui.Button('AllPetOwners') then
+            GearTarget = 'All'
+            doRun = true
+        end
         ImGui.SameLine()
         if ImGui.Button('Close') then
             drawPetOwners = false
@@ -621,6 +626,9 @@ local function RenderList()
                 ImGui.PopID()
             end
         end
+        
+        
+        
     end
     imgui.EndChild()
 end
@@ -1468,7 +1476,32 @@ while openGUI do
                 end
                 success = true -- Ensure loop continues
             end
+        elseif GearTarget == 'All' then
+            local allSuccess = true
+            local failedMembers = {}
+            for i, PetMaster in ipairs(petMasters) do
+                
+                local petName = PetMaster.petName or 'Unknown'
+                local masterName = PetMaster.name or 'Unknown'
+                MGear('\agMaster '..masterName..' \agPet '..petName)
+                local memberSuccess = giveItemToTarget(petName, true)
+                allSuccess = allSuccess and memberSuccess
+                if not memberSuccess then
+                    table.insert(failedMembers, masterName)
+                end
+            end
+
+            if #failedMembers > 0 then
+                MGear('\ayWarning\ax: Failed to summon for: ' .. table.concat(failedMembers, ', '))
+            end
+            if allSuccess then
+                MGear('\agGroup summoning complete')
+            else
+                MGear('\ayGroup summoning finished with some failures')
+            end
+            success = true -- Ensure loop continues
         end
+
 
         if needSave then
             saveSettings()
