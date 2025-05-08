@@ -1,4 +1,4 @@
---[[ Mage Gear by RedFrog v2.3.22 (DoN EMU Adjusted) Started: March 29, 2025
+--[[ Mage Gear by RedFrog v2.3.23 (DoN EMU Adjusted) Started: March 29, 2025
     Styled: Custom colors, GUI tooltips, toggles and themes, animated summon
     Updated: Pets auto-equip from bags, order: Weapons > Belt > Mask > Armor > Jewelry, fixed secondary weapon bug
     Fixed: Distance check, pet validation, casting/cursor issues, loop control, nav delay, hover colors, "Select a spell" crash, RGMercs crash, typo in getHoverColor, syntax error in Jewelry block
@@ -674,7 +674,7 @@ function MageGearGUI()
 
     local ColorCount, StyleCount = Themes.StartTheme(settings.currentTheme, ThemeData)
     local show = false
-    local open, draw = imgui.Begin("Mage Gear (DoN EMU) v2.3.22###MageGear", true)
+    local open, draw = imgui.Begin("Mage Gear (DoN EMU) v2.3.23###MageGear", true)
     if settings.currentTheme == "Water Mage" then
         imageFile = images['water'] or nil
     elseif settings.currentTheme == "Fire Mage" then
