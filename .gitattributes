@@ -1,0 +1,7 @@
+# Keep CI/dev files out of the release zip (git archive honors export-ignore).
+# Users get: magegear/init.lua + themes.lua + theme_loader.lua + the 3 runtime theme PNGs.
+# README.md + CHANGES.Log stay TRACKED (GitHub-facing) but don't ship.
+.github export-ignore
+.gitattributes export-ignore
+README.md export-ignore
+CHANGES.Log export-ignore

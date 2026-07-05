@@ -24,7 +24,10 @@ jobs:
           ref: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event.release.tag_name }}"
 
       - name: Build zip file
-        run: git archive --format=zip -o "${{ github.event.repository.name }}_${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event.release.tag_name }}.zip" HEAD
+        # --prefix wraps everything in a magegear/ folder (lowercase - matches /lua run magegear;
+        # the script resolves its own folder for the theme PNGs), so extracting into the MQ lua
+        # folder just works. Without it the zip was LOOSE at the root (systemic packaging bug).
+        run: git archive --format=zip --prefix=magegear/ -o "${{ github.event.repository.name }}_${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event.release.tag_name }}.zip" HEAD
 
       - name: Write message from workflow input (manual run)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.message != '' }}
